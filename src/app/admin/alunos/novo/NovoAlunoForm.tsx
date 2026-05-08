@@ -1,0 +1,348 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Loader2, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { mascararTelefonePT, labelCorFaixa } from "@/lib/utils";
+import { criarAluno } from "./actions";
+import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
+
+const COR_FAIXA_OPTIONS: CorFaixa[] = [
+  "branca",
+  "cinza_branca", "cinza", "cinza_preta",
+  "amarela_branca", "amarela", "amarela_preta",
+  "laranja_branca", "laranja", "laranja_preta",
+  "verde_branca", "verde", "verde_preta",
+  "azul", "roxa", "marrom", "preta", "coral", "vermelha",
+];
+
+const selectClass = "w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gb-blue/30 focus:border-gb-blue";
+
+interface Props {
+  alunosComLogin: { id: string; nome_completo: string }[];
+}
+
+export function NovoAlunoForm({ alunosComLogin }: Props) {
+  const router = useRouter();
+  const [carregando, setCarregando] = useState(false);
+  const [sucesso, setSucesso] = useState(false);
+  const [erro, setErro] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [semLogin, setSemLogin] = useState(false);
+
+  const [form, setForm] = useState({
+    email: "", senha: "", nome_completo: "",
+    telefone: "", data_nascimento: "", iban: "",
+    faixa: "branca" as CorFaixa,
+    graus: "0",
+    categoria: "adulto" as CategoriaFaixa,
+    perfil: "aluno",
+    valor_mensalidade: "",
+    primeiro_vencimento: "",
+    dia_vencimento: "10",
+    responsavel_id: "",
+  });
+
+  function set(field: string, value: string) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    setCarregando(true);
+
+    const fd = new FormData();
+    Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+    fd.append("sem_login", String(semLogin));
+
+    try {
+      const result = await criarAluno(fd);
+      if (!result.ok) { setErro(result.erro ?? "Erro ao criar aluno."); return; }
+      setSucesso(true);
+      setTimeout(() => router.push(`/admin/alunos/${result.userId}`), 1500);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  if (sucesso) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-4">
+        <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
+          <Check size={28} className="text-green-600" />
+        </div>
+        <p className="font-bold text-gray-900 text-lg">Aluno criado com sucesso!</p>
+        <p className="text-gray-400 text-sm">Redirecionando para o perfil...</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Sem login toggle */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={semLogin}
+            onChange={(e) => {
+              setSemLogin(e.target.checked);
+              if (!e.target.checked) set("responsavel_id", "");
+            }}
+            disabled={carregando}
+            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gb-blue focus:ring-gb-blue/30"
+          />
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Sem login (dependente / criança)</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Cria o cadastro sem conta de acesso ao app — útil para crianças geridas por um responsável.
+            </p>
+          </div>
+        </label>
+
+        {semLogin && (
+          <div className="space-y-1.5">
+            <Label htmlFor="responsavel_id">Responsável</Label>
+            <select
+              id="responsavel_id"
+              title="Responsável pelo aluno"
+              value={form.responsavel_id}
+              onChange={(e) => set("responsavel_id", e.target.value)}
+              className={selectClass}
+              disabled={carregando}
+            >
+              <option value="">Sem responsável</option>
+              {alunosComLogin.map((a) => (
+                <option key={a.id} value={a.id}>{a.nome_completo}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Credenciais — oculto quando sem_login */}
+      {!semLogin && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+          <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Acesso</h2>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email *</Label>
+            <Input
+              id="email" type="email" required={!semLogin}
+              placeholder="aluno@email.com"
+              value={form.email}
+              onChange={(e) => set("email", e.target.value)}
+              disabled={carregando}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="senha">Senha *</Label>
+            <div className="relative">
+              <Input
+                id="senha"
+                type={mostrarSenha ? "text" : "password"}
+                required={!semLogin} minLength={6}
+                placeholder="Mínimo 6 caracteres"
+                value={form.senha}
+                onChange={(e) => set("senha", e.target.value)}
+                disabled={carregando}
+                className="pr-11"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setMostrarSenha((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {mostrarSenha ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dados pessoais */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Dados pessoais</h2>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="nome_completo">Nome completo *</Label>
+          <Input
+            id="nome_completo" required
+            placeholder="Nome e sobrenome"
+            value={form.nome_completo}
+            onChange={(e) => set("nome_completo", e.target.value)}
+            disabled={carregando}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {!(semLogin && form.responsavel_id) && (
+            <div className="space-y-1.5">
+              <Label htmlFor="telefone">Telefone</Label>
+              <Input
+                id="telefone" type="tel"
+                placeholder="+351 XXX XXX XXX"
+                value={form.telefone}
+                onChange={(e) => set("telefone", mascararTelefonePT(e.target.value))}
+                disabled={carregando}
+              />
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="data_nascimento">Data de nascimento</Label>
+            <Input
+              id="data_nascimento" type="date"
+              title="Data de nascimento"
+              value={form.data_nascimento}
+              onChange={(e) => set("data_nascimento", e.target.value)}
+              disabled={carregando}
+              max={new Date().toISOString().split("T")[0]}
+            />
+          </div>
+
+          {!(semLogin && form.responsavel_id) && (
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label htmlFor="iban">IBAN</Label>
+              <Input
+                id="iban"
+                placeholder="PT50 XXXX XXXX XXXX XXXX XXXX X"
+                value={form.iban}
+                onChange={(e) => set("iban", e.target.value)}
+                disabled={carregando}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Graduação */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Graduação & Perfil</h2>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="faixa">Faixa</Label>
+            <select
+              id="faixa" title="Faixa" value={form.faixa}
+              onChange={(e) => set("faixa", e.target.value)}
+              className={selectClass} disabled={carregando}
+            >
+              {COR_FAIXA_OPTIONS.map((c) => (
+                <option key={c} value={c}>{labelCorFaixa(c)}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="graus">Graus</Label>
+            <select
+              id="graus" title="Graus" value={form.graus}
+              onChange={(e) => set("graus", e.target.value)}
+              className={selectClass} disabled={carregando}
+            >
+              {[0, 1, 2, 3, 4].map((g) => (
+                <option key={g} value={g}>{g === 0 ? "Sem" : g}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="categoria">Categoria</Label>
+            <select
+              id="categoria" title="Categoria" value={form.categoria}
+              onChange={(e) => set("categoria", e.target.value)}
+              className={selectClass} disabled={carregando}
+            >
+              <option value="adulto">Adulto</option>
+              <option value="infantil">Infantil</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="perfil">Perfil</Label>
+            <select
+              id="perfil" title="Perfil" value={form.perfil}
+              onChange={(e) => set("perfil", e.target.value)}
+              className={selectClass} disabled={carregando}
+            >
+              <option value="aluno">Aluno</option>
+              <option value="professor">Professor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Mensalidade */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <h2 className="font-bold text-sm uppercase tracking-wide text-gb-blue">Mensalidade</h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="valor_mensalidade">Valor (€)</Label>
+            <Input
+              id="valor_mensalidade"
+              type="number" min="0" step="0.01"
+              placeholder="0,00"
+              value={form.valor_mensalidade}
+              onChange={(e) => set("valor_mensalidade", e.target.value)}
+              disabled={carregando}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="primeiro_vencimento">Primeiro vencimento</Label>
+            <Input
+              id="primeiro_vencimento" type="date"
+              title="Primeiro vencimento"
+              value={form.primeiro_vencimento}
+              onChange={(e) => set("primeiro_vencimento", e.target.value)}
+              disabled={carregando}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="dia_vencimento">Dia de vencimento</Label>
+            <select
+              id="dia_vencimento"
+              title="Dia de vencimento recorrente"
+              value={form.dia_vencimento}
+              onChange={(e) => set("dia_vencimento", e.target.value)}
+              className={selectClass}
+              disabled={carregando}
+            >
+              {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {erro && (
+        <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          {erro}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <Button type="submit" disabled={carregando} className="bg-gb-blue hover:bg-gb-blue-dark text-white flex-1">
+          {carregando
+            ? <><Loader2 size={15} className="animate-spin mr-2" />Criando...</>
+            : "Criar aluno"
+          }
+        </Button>
+        <Button type="button" variant="outline" onClick={() => router.back()} disabled={carregando}>
+          Cancelar
+        </Button>
+      </div>
+    </form>
+  );
+}
