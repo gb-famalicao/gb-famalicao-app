@@ -33,25 +33,25 @@ export function labelCorFaixa(faixa: CorFaixa): string {
 }
 
 export function mascararTelefonePT(valor: string): string {
-  const nums = valor.replace(/\D/g, '').slice(0, 9);
-  if (nums.length <= 4) return nums;
-  if (nums.length <= 7) return `${nums.slice(0,4)} ${nums.slice(4)}`;
-  return `${nums.slice(0,4)} ${nums.slice(4,7)} ${nums.slice(7)}`;
+  const nums = valor.replace(/\D/g, '').slice(0, 9)
+  if (nums.length <= 4) return nums
+  if (nums.length <= 7) return `${nums.slice(0, 4)} ${nums.slice(4)}`
+  return `${nums.slice(0, 4)} ${nums.slice(4, 7)} ${nums.slice(7)}`
 }
 
 export function formatarTelefonePT(valor: string): string {
-  return mascararTelefonePT(valor);
+  return mascararTelefonePT(valor)
 }
 
 export function formatarData(data: string | Date | null | undefined): string {
-  if (!data) return '—';
-  return new Date(data).toLocaleDateString('pt-PT');
+  if (!data) return '—'
+  return new Date(data).toLocaleDateString('pt-PT')
 }
 
 export function formatarMes(ano: number, mes: number): string {
-  return new Date(ano, mes - 1).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+  return new Date(ano, mes - 1).toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' })
 }
 
 export function formatarMoeda(valor: number): string {
-  return valor.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' });
+  return valor.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })
 }
