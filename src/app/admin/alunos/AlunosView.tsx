@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search, UserPlus, ChevronRight, User } from "lucide-react";
+import { Search, UserPlus, ChevronRight, User, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { labelCorFaixa } from "@/lib/utils";
@@ -50,16 +50,42 @@ interface Props {
 }
 
 export function AlunosView({ alunos, responsaveisMap }: Props) {
+  const [lista, setLista] = useState<Profile[]>(alunos);
   const [busca, setBusca] = useState("");
   const [tabAtiva, setTabAtiva] = useState<"ativos" | "inativos">("ativos");
   const [filtroFaixa, setFiltroFaixa] = useState<CorFaixa | "">("");
   const [filtroCategoria, setFiltroCategoria] = useState<CategoriaFaixa | "">("");
   const [filtroPerfil, setFiltroPerfil] = useState<string>("");
   const [pagina, setPagina] = useState(1);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
+
+  async function handleExcluir(e: React.MouseEvent, aluno: Profile) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!confirm(`Excluir permanentemente "${aluno.nome_completo}"? Esta ação não pode ser desfeita.`)) return;
+    setExcluindoId(aluno.id);
+    try {
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: aluno.id }),
+      });
+      const json = await res.json() as { ok: boolean; erro?: string };
+      if (!json.ok) {
+        alert(`Erro ao excluir: ${json.erro ?? "desconhecido"}`);
+      } else {
+        setLista((prev) => prev.filter((p) => p.id !== aluno.id));
+      }
+    } catch {
+      alert("Erro de rede ao excluir.");
+    } finally {
+      setExcluindoId(null);
+    }
+  }
 
   const filtrados = useMemo(() => {
     const q = busca.toLowerCase().trim();
-    return alunos.filter((a) => {
+    return lista.filter((a) => {
       if (q && !a.nome_completo.toLowerCase().includes(q)) return false;
       if (tabAtiva === "ativos") {
         if (a.status !== "ativo") return false;
@@ -71,7 +97,7 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
       if (filtroCategoria && a.categoria !== filtroCategoria) return false;
       return true;
     });
-  }, [alunos, busca, tabAtiva, filtroPerfil, filtroFaixa, filtroCategoria]);
+  }, [lista, busca, tabAtiva, filtroPerfil, filtroFaixa, filtroCategoria]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -84,9 +110,9 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
   // Collect unique belts present in the list for the filter dropdown
   const faixasPresentes = useMemo(() => {
     const seen = new Set<CorFaixa>();
-    alunos.forEach((a) => { if (a.faixa) seen.add(a.faixa); });
+    lista.forEach((a) => { if (a.faixa) seen.add(a.faixa); });
     return Array.from(seen);
-  }, [alunos]);
+  }, [lista]);
 
   return (
     <div className="p-4 md:p-6 space-y-4">
@@ -94,7 +120,7 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Cadastros</h1>
-          <p className="text-sm text-gray-500">{alunos.length} registados</p>
+          <p className="text-sm text-gray-500">{lista.length} registados</p>
         </div>
         <Link
           href="/admin/alunos/novo"
@@ -181,13 +207,12 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
         ) : (
           <div className="divide-y divide-gray-50">
             {slice.map((a) => (
-              <Link
+              <div
                 key={a.id}
-                href={`/admin/alunos/${a.id}`}
                 className="flex items-center gap-4 px-4 py-3.5 hover:bg-gray-50 transition-colors group"
               >
                 {/* Avatar */}
-                <div className="w-10 h-10 rounded-full bg-gb-blue flex items-center justify-center shrink-0 overflow-hidden">
+                <Link href={`/admin/alunos/${a.id}`} className="w-10 h-10 rounded-full bg-gb-blue flex items-center justify-center shrink-0 overflow-hidden">
                   {a.foto_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={a.foto_url} alt={a.nome_completo} className="w-full h-full object-cover" />
@@ -196,10 +221,10 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
                       {a.nome_completo.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()}
                     </span>
                   )}
-                </div>
+                </Link>
 
                 {/* Info */}
-                <div className="flex-1 min-w-0">
+                <Link href={`/admin/alunos/${a.id}`} className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-1.5 min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{a.nome_completo}</p>
                     {responsaveisMap[a.id] && (
@@ -225,10 +250,23 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
                     )}
                     <span className="text-xs text-gray-400 capitalize">{a.categoria}</span>
                   </div>
-                </div>
+                </Link>
 
-                <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
-              </Link>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => handleExcluir(e, a)}
+                    disabled={excluindoId === a.id}
+                    title="Excluir aluno"
+                    className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                  <Link href={`/admin/alunos/${a.id}`}>
+                    <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
+                  </Link>
+                </div>
+              </div>
             ))}
           </div>
         )}
