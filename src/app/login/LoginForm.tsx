@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,18 @@ import { login } from "./auth-actions";
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    const erroParam = searchParams.get("erro");
+    if (erroParam === "confirmacao") {
+      setErro("Link inválido ou expirado. Tenta iniciar sessão ou solicita um novo link.");
+    }
+  }, [searchParams]);
 
   async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
@@ -24,10 +32,13 @@ export function LoginForm() {
     const res = await login(email, senha);
 
     if (res.ok) {
-      router.refresh();
       router.push("/perfil");
     } else {
-      setErro("Email ou senha incorretos.");
+      if (res.tipoErro === "nao_confirmado") {
+        setErro("Email ainda não confirmado. Verifica a tua caixa de entrada e confirma o registo.");
+      } else {
+        setErro("Email ou senha incorretos.");
+      }
       setCarregando(false);
     }
   }
@@ -40,7 +51,7 @@ export function LoginForm() {
           <Input
             id="email"
             type="email"
-            placeholder="seu@email.com"
+            placeholder="teu@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -52,7 +63,15 @@ export function LoginForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="senha">Senha</Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="senha">Senha</Label>
+          <Link
+            href="/esqueci-senha"
+            className="text-xs text-gb-blue hover:underline"
+          >
+            Esqueci a senha
+          </Link>
+        </div>
         <div className="relative">
           <Input
             id="senha"
@@ -78,7 +97,7 @@ export function LoginForm() {
         {carregando ? (
           <>
             <Loader2 size={16} className="animate-spin mr-2" />
-            Entrando...
+            A entrar…
           </>
         ) : (
           "Entrar"
@@ -88,7 +107,7 @@ export function LoginForm() {
       <p className="text-center text-sm text-gray-500">
         Não tem conta?{" "}
         <Link href="/cadastro" className="text-gb-blue font-semibold hover:underline">
-          Cadastre-se
+          Registe-se
         </Link>
       </p>
     </form>

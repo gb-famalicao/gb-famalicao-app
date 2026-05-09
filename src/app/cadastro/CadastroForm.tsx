@@ -456,23 +456,29 @@ function StepWelcome({ onCriar, onLogin }: { onCriar: () => void; onLogin: () =>
 function StepEmail({
   email,
   senha,
+  confirmarSenha,
   erro,
   loading,
   onEmail,
   onSenha,
+  onConfirmarSenha,
   onBack,
   onSubmit,
 }: {
   email: string;
   senha: string;
+  confirmarSenha: string;
   erro: string;
   loading: boolean;
   onEmail: (v: string) => void;
   onSenha: (v: string) => void;
+  onConfirmarSenha: (v: string) => void;
   onBack: () => void;
   onSubmit: () => void;
 }) {
   const [showPwd, setShowPwd] = useState(false);
+  const [showConfirmar, setShowConfirmar] = useState(false);
+  const senhasNaoCoincidem = confirmarSenha.length > 0 && senha !== confirmarSenha;
 
   return (
     <Shell>
@@ -539,13 +545,40 @@ function StepEmail({
           />
         </Field>
 
+        <Field label="Confirmar senha" focused={confirmarSenha.length > 0}>
+          <TextInput
+            type={showConfirmar ? "text" : "password"}
+            placeholder="Repete a senha"
+            value={confirmarSenha}
+            onChange={onConfirmarSenha}
+            autoComplete="new-password"
+            required
+            disabled={loading}
+            suffix={
+              <button
+                type="button"
+                onClick={() => setShowConfirmar((v) => !v)}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: C.ink3 }}
+                tabIndex={-1}
+              >
+                {showConfirmar ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            }
+          />
+          {senhasNaoCoincidem && (
+            <div style={{ fontSize: 12, color: C.red, marginTop: 4 }}>
+              As senhas não coincidem.
+            </div>
+          )}
+        </Field>
+
         {erro && <ErrorBanner msg={erro} />}
 
         <div style={{ flex: 1 }} />
 
         <PrimaryBtn
           loading={loading}
-          disabled={!email || senha.length < 6}
+          disabled={!email || senha.length < 6 || senha !== confirmarSenha}
           onClick={onSubmit}
         >
           Enviar código
@@ -1154,11 +1187,14 @@ export function CadastroForm() {
   // Form state
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [dataNasc, setDataNasc] = useState("");
   const [contactoEmergencia, setContactoEmergencia] = useState("");
   const [countdown, setCountdown] = useState(0);
+  // Tracks if signUp was already called — avoids re-checking email on back-nav
+  const [otpEnviado, setOtpEnviado] = useState(false);
 
   function startCountdown() {
     setCountdown(30);
@@ -1172,17 +1208,27 @@ export function CadastroForm() {
 
   async function handleEnviarCodigo() {
     setErro("");
-    if (!email || senha.length < 6) return;
+    if (!email || senha.length < 6 || senha !== confirmarSenha) return;
     setLoading(true);
     try {
-      const jaExiste = await verificarEmailExistente(email);
-      if (jaExiste) {
-        setErro("E-mail já cadastrado. Use um e-mail diferente.");
-        return;
+      const emailNorm = email.trim().toLowerCase();
+
+      // Skip duplicate check if OTP was already sent for this email
+      if (!otpEnviado) {
+        try {
+          const jaExiste = await verificarEmailExistente(emailNorm);
+          if (jaExiste) {
+            setErro("E-mail já cadastrado. Use um e-mail diferente.");
+            return;
+          }
+        } catch {
+          // If admin check fails, fall through — signUp will catch real duplicates
+        }
       }
+
       const supabase = createClient();
       const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
+        email: emailNorm,
         password: senha,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -1197,6 +1243,7 @@ export function CadastroForm() {
         setErro("E-mail já cadastrado. Use um e-mail diferente.");
         return;
       }
+      setOtpEnviado(true);
       setPasso(2);
       startCountdown();
     } finally {
@@ -1210,7 +1257,7 @@ export function CadastroForm() {
     try {
       const supabase = createClient();
       const { error } = await supabase.auth.verifyOtp({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         token: code,
         type: "email",
       });
@@ -1229,7 +1276,7 @@ export function CadastroForm() {
     setLoading(true);
     try {
       const supabase = createClient();
-      await supabase.auth.resend({ type: "signup", email: email.trim() });
+      await supabase.auth.resend({ type: "signup", email: email.trim().toLowerCase() });
       startCountdown();
     } finally {
       setLoading(false);
@@ -1253,6 +1300,7 @@ export function CadastroForm() {
           nome_completo: nome.trim(),
           telefone: telefone || null,
           data_nascimento: dataNasc || null,
+          contacto_emergencia: contactoEmergencia || null,
         })
         .eq("id", user.id);
       if (error) {
@@ -1278,10 +1326,12 @@ export function CadastroForm() {
         <StepEmail
           email={email}
           senha={senha}
+          confirmarSenha={confirmarSenha}
           erro={erro}
           loading={loading}
           onEmail={setEmail}
           onSenha={setSenha}
+          onConfirmarSenha={setConfirmarSenha}
           onBack={() => { setErro(""); setPasso(0); }}
           onSubmit={handleEnviarCodigo}
         />

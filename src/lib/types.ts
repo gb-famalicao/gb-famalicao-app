@@ -81,6 +81,7 @@ export interface Profile {
   categoria: CategoriaFaixa;
   status: StatusAluno;
   foto_url: string | null;
+  contacto_emergencia: string | null;
   iban: string | null;
   aulas_manual: number;
   sem_login: boolean | null;
