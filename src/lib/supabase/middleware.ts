@@ -31,7 +31,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const publicPaths = ["/login", "/cadastro", "/tablet/login"];
+  const publicPaths = ["/login", "/cadastro", "/tablet/login", "/auth/callback", "/esqueci-senha", "/nova-senha"];
 
   if (!user && !publicPaths.includes(pathname)) {
     const url = request.nextUrl.clone();
