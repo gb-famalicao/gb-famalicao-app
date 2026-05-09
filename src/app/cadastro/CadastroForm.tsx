@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { mascararTelefonePT } from "@/lib/utils";
+import { verificarEmailExistente } from "./cadastro-actions";
 
 // ─── Palette ────────────────────────────────────────────────
 const C = {
@@ -1174,8 +1175,13 @@ export function CadastroForm() {
     if (!email || senha.length < 6) return;
     setLoading(true);
     try {
+      const jaExiste = await verificarEmailExistente(email);
+      if (jaExiste) {
+        setErro("E-mail já cadastrado. Use um e-mail diferente.");
+        return;
+      }
       const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password: senha,
         options: {
@@ -1183,11 +1189,12 @@ export function CadastroForm() {
         },
       });
       if (error) {
-        if (error.message.includes("already registered")) {
-          setErro("Este email já está registado. Tenta iniciar sessão.");
-        } else {
-          setErro("Erro ao enviar código. Tenta novamente.");
-        }
+        setErro("Erro ao enviar código. Tenta novamente.");
+        return;
+      }
+      // Fallback: Supabase returns identities: [] for already-registered emails
+      if (!data.user || data.user.identities?.length === 0) {
+        setErro("E-mail já cadastrado. Use um e-mail diferente.");
         return;
       }
       setPasso(2);
