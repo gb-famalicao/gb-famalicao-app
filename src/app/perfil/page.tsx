@@ -66,9 +66,30 @@ export default async function PerfilPage() {
   const aulasMes = presencasMesCount ?? 0;
   const ultimoTreino = (ultimaPresenca?.[0] as { data_presenca: string } | undefined)?.data_presenca ?? null;
   const avisosTimestamps = (avisosData ?? []).map((a) => a.created_at as string);
-  const dependentes: DependentePerfil[] = (dependentesData ?? [])
-    .map((d) => d.dependente as unknown as DependentePerfil)
-    .filter(Boolean);
+
+  const dependentesBase: DependentePerfil[] = (dependentesData ?? [])
+    .map((d) => d.dependente as unknown as Omit<DependentePerfil, "mensalidades">)
+    .filter(Boolean)
+    .map((d) => ({ ...d, mensalidades: [] }));
+
+  let dependentes: DependentePerfil[] = dependentesBase;
+  if (dependentesBase.length > 0) {
+    const depIds = dependentesBase.map((d) => d.id);
+    const { data: depMensalidades } = await supabase
+      .from("mensalidades")
+      .select("*")
+      .in("aluno_id", depIds)
+      .order("mes_referencia", { ascending: false });
+
+    if (depMensalidades) {
+      const byAluno = new Map<string, Mensalidade[]>();
+      for (const m of depMensalidades as Mensalidade[]) {
+        if (!byAluno.has(m.aluno_id)) byAluno.set(m.aluno_id, []);
+        byAluno.get(m.aluno_id)!.push(m);
+      }
+      dependentes = dependentesBase.map((d) => ({ ...d, mensalidades: byAluno.get(d.id) ?? [] }));
+    }
+  }
 
   return (
     <PerfilView

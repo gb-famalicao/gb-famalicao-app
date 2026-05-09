@@ -4,8 +4,9 @@ import { useRef, useState, KeyboardEvent, ClipboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { mascararTelefonePT } from "@/lib/utils";
-import { verificarEmailExistente } from "./cadastro-actions";
+import { labelCorFaixa } from "@/lib/utils";
+import { verificarEmailExistente, concluirCadastroResponsavel } from "./cadastro-actions";
+import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
 
 // ─── Palette ────────────────────────────────────────────────
 const C = {
@@ -20,6 +21,95 @@ const C = {
   ink3: "#9a9aa3",
   line: "#e4e4e8",
 };
+
+// ─── Belt constants ──────────────────────────────────────────
+const ADULT_BELTS: CorFaixa[] = ["branca", "azul", "roxa", "marrom", "preta"];
+const INFANTIL_BELTS: CorFaixa[] = [
+  "branca", "cinza_branca", "cinza", "cinza_preta",
+  "amarela_branca", "amarela", "amarela_preta",
+  "laranja_branca", "laranja", "laranja_preta",
+  "verde_branca", "verde", "verde_preta",
+];
+
+const BELT_BG: Partial<Record<CorFaixa, string>> = {
+  branca: "#ffffff",
+  cinza_branca: "#e5e7eb",
+  cinza: "#9ca3af",
+  cinza_preta: "#6b7280",
+  amarela_branca: "#fef9c3",
+  amarela: "#eab308",
+  amarela_preta: "#a16207",
+  laranja_branca: "#ffedd5",
+  laranja: "#f97316",
+  laranja_preta: "#c2410c",
+  verde_branca: "#dcfce7",
+  verde: "#22c55e",
+  verde_preta: "#15803d",
+  azul: "#2563eb",
+  roxa: "#7c3aed",
+  marrom: "#92400e",
+  preta: "#1f2937",
+};
+
+const BELT_TEXT: Partial<Record<CorFaixa, string>> = {
+  branca: "#374151",
+  cinza_branca: "#374151",
+  cinza: "#ffffff",
+  cinza_preta: "#ffffff",
+  amarela_branca: "#374151",
+  amarela: "#1f2937",
+  amarela_preta: "#ffffff",
+  laranja_branca: "#374151",
+  laranja: "#ffffff",
+  laranja_preta: "#ffffff",
+  verde_branca: "#374151",
+  verde: "#ffffff",
+  verde_preta: "#ffffff",
+  azul: "#ffffff",
+  roxa: "#ffffff",
+  marrom: "#ffffff",
+  preta: "#ffffff",
+};
+
+// ─── Helpers ─────────────────────────────────────────────────
+
+function formatarTelefone(valor: string): string {
+  let digits: string;
+  if (valor.startsWith("+351")) {
+    digits = valor.slice(4).replace(/\D/g, "");
+  } else if (valor.startsWith("351")) {
+    digits = valor.slice(3).replace(/\D/g, "");
+  } else {
+    digits = valor.replace(/\D/g, "");
+  }
+  digits = digits.slice(0, 9);
+  if (!digits) return "+351 ";
+  if (digits.length <= 3) return `+351 ${digits}`;
+  if (digits.length <= 6) return `+351 ${digits.slice(0, 3)} ${digits.slice(3)}`;
+  return `+351 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+}
+
+function mascaraData(valor: string): string {
+  const nums = valor.replace(/\D/g, "").slice(0, 8);
+  if (nums.length <= 2) return nums;
+  if (nums.length <= 4) return `${nums.slice(0, 2)}/${nums.slice(2)}`;
+  return `${nums.slice(0, 2)}/${nums.slice(2, 4)}/${nums.slice(4)}`;
+}
+
+function dataParaISO(ddmmaaaa: string): string | null {
+  const nums = ddmmaaaa.replace(/\D/g, "");
+  if (nums.length !== 8) return null;
+  const dia = nums.slice(0, 2);
+  const mes = nums.slice(2, 4);
+  const ano = nums.slice(4, 8);
+  const d = new Date(`${ano}-${mes}-${dia}`);
+  if (isNaN(d.getTime())) return null;
+  return `${ano}-${mes}-${dia}`;
+}
+
+function telefoneLimpo(telefone: string): string | null {
+  return telefone.replace(/\D/g, "").length > 3 ? telefone.trim() : null;
+}
 
 // ─── Shared primitives ───────────────────────────────────────
 
@@ -277,7 +367,6 @@ function Shell({
 function StepWelcome({ onCriar, onLogin }: { onCriar: () => void; onLogin: () => void }) {
   return (
     <Shell dark bg={C.ink}>
-      {/* Facade background */}
       <div
         style={{
           position: "absolute",
@@ -289,7 +378,6 @@ function StepWelcome({ onCriar, onLogin }: { onCriar: () => void; onLogin: () =>
           zIndex: 0,
         }}
       />
-      {/* Dark gradient overlay */}
       <div
         style={{
           position: "absolute",
@@ -299,7 +387,6 @@ function StepWelcome({ onCriar, onLogin }: { onCriar: () => void; onLogin: () =>
           zIndex: 1,
         }}
       />
-      {/* Red glow */}
       <div
         style={{
           position: "absolute",
@@ -325,7 +412,6 @@ function StepWelcome({ onCriar, onLogin }: { onCriar: () => void; onLogin: () =>
           zIndex: 2,
         }}
       >
-        {/* Logo row */}
         <div style={{ paddingTop: 64, display: "flex", alignItems: "center", gap: 12 }}>
           <img
             src="/logo.webp"
@@ -670,7 +756,6 @@ function StepOtp({
 
         <div style={{ height: 28 }} />
 
-        {/* Envelope illustration */}
         <div
           style={{
             alignSelf: "center",
@@ -712,7 +797,6 @@ function StepOtp({
           </div>
         </div>
 
-        {/* OTP boxes - Tamanho ajustado */}
         <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
           {digits.map((d, i) => (
             <input
@@ -732,9 +816,6 @@ function StepOtp({
                 borderRadius: 12,
                 background: "#fff",
                 border: `2px solid ${i === digits.findIndex((x) => !x) && d === "" ? C.ink : d ? C.navy : C.line}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
                 textAlign: "center",
                 fontSize: 24,
                 fontWeight: 700,
@@ -749,7 +830,6 @@ function StepOtp({
 
         <div style={{ height: 22 }} />
 
-        {/* Resend countdown */}
         <div
           style={{
             padding: "14px 16px",
@@ -821,42 +901,200 @@ function StepOtp({
   );
 }
 
+// ─── Belt + Grau pickers ─────────────────────────────────────
+
+function BeltPicker({
+  categoria,
+  faixa,
+  onFaixa,
+  disabled,
+}: {
+  categoria: CategoriaFaixa;
+  faixa: CorFaixa | "";
+  onFaixa: (v: CorFaixa | "") => void;
+  disabled?: boolean;
+}) {
+  const belts = categoria === "adulto" ? ADULT_BELTS : INFANTIL_BELTS;
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+      {belts.map((b) => {
+        const selected = faixa === b;
+        return (
+          <button
+            key={b}
+            type="button"
+            disabled={disabled}
+            onClick={() => onFaixa(selected ? "" : b)}
+            style={{
+              height: 34,
+              padding: "0 14px",
+              borderRadius: 17,
+              background: selected ? (BELT_BG[b] ?? "#ddd") : "#fff",
+              color: selected ? (BELT_TEXT[b] ?? C.ink) : C.ink2,
+              border: selected
+                ? `2px solid ${BELT_BG[b] ?? "#aaa"}`
+                : `1.5px solid ${C.line}`,
+              cursor: disabled ? "not-allowed" : "pointer",
+              fontSize: 13,
+              fontWeight: selected ? 700 : 500,
+              fontFamily: "inherit",
+              boxShadow: selected ? "0 2px 8px rgba(0,0,0,0.12)" : "none",
+              transition: "all 0.12s",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {labelCorFaixa(b)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function GrauPicker({
+  graus,
+  onGraus,
+  disabled,
+}: {
+  graus: number;
+  onGraus: (v: number) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div style={{ display: "flex", gap: 8 }}>
+      {[0, 1, 2, 3, 4].map((g) => {
+        const selected = graus === g;
+        return (
+          <button
+            key={g}
+            type="button"
+            disabled={disabled}
+            onClick={() => onGraus(g)}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              background: selected ? C.ink : "#fff",
+              color: selected ? "#fff" : C.ink2,
+              border: selected ? `2px solid ${C.ink}` : `1.5px solid ${C.line}`,
+              cursor: disabled ? "not-allowed" : "pointer",
+              fontSize: 16,
+              fontWeight: 700,
+              fontFamily: "inherit",
+              transition: "all 0.12s",
+            }}
+          >
+            {g}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CategoriaPicker({
+  categoria,
+  onCategoria,
+  disabled,
+}: {
+  categoria: CategoriaFaixa;
+  onCategoria: (v: CategoriaFaixa) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        background: "#fff",
+        border: `1.5px solid ${C.line}`,
+        borderRadius: 12,
+        padding: 4,
+        gap: 4,
+      }}
+    >
+      {(["adulto", "infantil"] as CategoriaFaixa[]).map((c) => {
+        const selected = categoria === c;
+        return (
+          <button
+            key={c}
+            type="button"
+            disabled={disabled}
+            onClick={() => onCategoria(c)}
+            style={{
+              flex: 1,
+              height: 36,
+              borderRadius: 8,
+              background: selected ? C.ink : "transparent",
+              color: selected ? "#fff" : C.ink2,
+              border: "none",
+              cursor: disabled ? "not-allowed" : "pointer",
+              fontSize: 14,
+              fontWeight: selected ? 700 : 500,
+              fontFamily: "inherit",
+              transition: "all 0.15s",
+            }}
+          >
+            {c === "adulto" ? "Adulto" : "Infantil"}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Step 3 — Personal data ──────────────────────────────────
 
 function StepDados({
+  tipoUsuario,
+  onTipoUsuario,
   nome,
   telefone,
   dataNasc,
   contactoEmergencia,
+  categoria,
+  faixa,
+  graus,
+  nomeAluno,
   erro,
   loading,
   onNome,
   onTelefone,
   onDataNasc,
   onContacto,
+  onCategoria,
+  onFaixa,
+  onGraus,
+  onNomeAluno,
   onBack,
   onSubmit,
 }: {
+  tipoUsuario: "aluno" | "responsavel";
+  onTipoUsuario: (t: "aluno" | "responsavel") => void;
   nome: string;
   telefone: string;
   dataNasc: string;
   contactoEmergencia: string;
+  categoria: CategoriaFaixa;
+  faixa: CorFaixa | "";
+  graus: number;
+  nomeAluno: string;
   erro: string;
   loading: boolean;
   onNome: (v: string) => void;
   onTelefone: (v: string) => void;
   onDataNasc: (v: string) => void;
   onContacto: (v: string) => void;
+  onCategoria: (v: CategoriaFaixa) => void;
+  onFaixa: (v: CorFaixa | "") => void;
+  onGraus: (v: number) => void;
+  onNomeAluno: (v: string) => void;
   onBack: () => void;
   onSubmit: () => void;
 }) {
-  const initials = nome
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join("");
+  const nomeValido = nome.trim().split(" ").filter(Boolean).length >= 2;
+  const nomeAlunoValido = nomeAluno.trim().split(" ").filter(Boolean).length >= 2;
+  const podeSubmeter = tipoUsuario === "aluno" ? nomeValido : (nomeValido && nomeAlunoValido);
+  const isResponsavel = tipoUsuario === "responsavel";
 
   return (
     <Shell>
@@ -865,114 +1103,134 @@ function StepDados({
         <Eyebrow>Passo 3 de 3</Eyebrow>
         <h1
           style={{
-            fontSize: 38,
+            fontSize: 34,
             fontWeight: 800,
             lineHeight: 1.05,
             letterSpacing: -1.2,
-            margin: "10px 0 10px",
+            margin: "10px 0 16px",
           }}
         >
           Os teus dados
         </h1>
-        <p style={{ fontSize: 15, color: C.ink2, lineHeight: 1.5, margin: 0 }}>
-          Para a tua ficha de aluno na academia.
-        </p>
 
-        <div style={{ height: 24 }} />
-
-        {/* Avatar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 22 }}>
+        {/* Tipo toggle */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 8 }}>
+            Sou
+          </div>
           <div
             style={{
-              width: 68,
-              height: 68,
-              borderRadius: 34,
-              background: C.navy,
-              color: "#fff",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 26,
-              fontWeight: 700,
-              position: "relative",
-              flexShrink: 0,
+              background: "#fff",
+              border: `1.5px solid ${C.line}`,
+              borderRadius: 12,
+              padding: 4,
+              gap: 4,
             }}
           >
-            {initials || "?"}
-            <div
-              style={{
-                position: "absolute",
-                bottom: -2,
-                right: -2,
-                width: 26,
-                height: 26,
-                borderRadius: 13,
-                background: C.red,
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: `2.5px solid ${C.bg}`,
-              }}
-            >
-              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                <path d="M6 1v10M1 6h10" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>Adicionar foto</div>
-            <div style={{ fontSize: 12, color: C.ink3, marginTop: 2 }}>Opcional</div>
+            {(["aluno", "responsavel"] as const).map((t) => {
+              const selected = tipoUsuario === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => onTipoUsuario(t)}
+                  style={{
+                    flex: 1,
+                    height: 38,
+                    borderRadius: 8,
+                    background: selected ? C.red : "transparent",
+                    color: selected ? "#fff" : C.ink2,
+                    border: "none",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    fontSize: 14,
+                    fontWeight: selected ? 700 : 500,
+                    fontFamily: "inherit",
+                    transition: "all 0.15s",
+                    padding: "0 8px",
+                  }}
+                >
+                  {t === "aluno" ? "Aluno" : "Responsável de Aluno"}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <Field label="Nome completo" focused>
+        <Field label={isResponsavel ? "Nome Completo do Responsável" : "Nome completo"} focused>
           <TextInput
             type="text"
-            placeholder="João Silva"
+            placeholder={isResponsavel ? "Maria Silva" : "João Silva"}
             value={nome}
             onChange={onNome}
             autoComplete="name"
             required
             disabled={loading}
           />
+          {nome.length > 0 && !nomeValido && (
+            <div style={{ fontSize: 12, color: C.ink3, marginTop: 4 }}>Insere nome e apelido.</div>
+          )}
         </Field>
 
         <Field label="Telemóvel">
           <TextInput
             type="tel"
-            placeholder="+351 912 345 678"
+            placeholder="+351 939 992 840"
             value={telefone}
-            onChange={(v) => onTelefone(mascararTelefonePT(v))}
+            onChange={(v) => onTelefone(formatarTelefone(v))}
             autoComplete="tel"
             disabled={loading}
             inputMode="tel"
           />
         </Field>
 
-        <Field label="Data de nascimento">
-          <input
-            type="date"
+        {isResponsavel && (
+          <Field label="Nome do Aluno">
+            <TextInput
+              type="text"
+              placeholder="Pedro Silva"
+              value={nomeAluno}
+              onChange={onNomeAluno}
+              disabled={loading}
+            />
+            {nomeAluno.length > 0 && !nomeAlunoValido && (
+              <div style={{ fontSize: 12, color: C.ink3, marginTop: 4 }}>Insere nome e apelido do aluno.</div>
+            )}
+          </Field>
+        )}
+
+        <Field label={isResponsavel ? "Data de nascimento do aluno" : "Data de nascimento"}>
+          <TextInput
+            type="text"
+            inputMode="numeric"
+            placeholder="DD/MM/AAAA"
             value={dataNasc}
-            onChange={(e) => onDataNasc(e.target.value)}
+            onChange={(v) => onDataNasc(mascaraData(v))}
             disabled={loading}
-            max={new Date().toISOString().split("T")[0]}
-            style={{
-              height: 50,
-              borderRadius: 12,
-              background: "#fff",
-              border: `1.5px solid ${C.line}`,
-              padding: "0 14px",
-              fontSize: 16,
-              fontWeight: 500,
-              width: "100%",
-              boxSizing: "border-box",
-              outline: "none",
-              fontFamily: "inherit",
-              color: C.ink,
-            }}
           />
         </Field>
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+            {isResponsavel ? "Categoria do aluno" : "Categoria"}
+          </div>
+          <CategoriaPicker categoria={categoria} onCategoria={onCategoria} disabled={loading} />
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+            {isResponsavel ? "Faixa do aluno" : "Faixa"}
+          </div>
+          <BeltPicker categoria={categoria} faixa={faixa} onFaixa={onFaixa} disabled={loading} />
+        </div>
+
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+            Graus
+          </div>
+          <GrauPicker graus={graus} onGraus={onGraus} disabled={loading} />
+        </div>
 
         <Field label="Contacto de emergência">
           <TextInput
@@ -984,10 +1242,9 @@ function StepDados({
           />
         </Field>
 
-        {/* Privacy note */}
         <div
           style={{
-            marginTop: 8,
+            marginTop: 4,
             padding: "12px 14px",
             borderRadius: 12,
             background: "rgba(3,10,140,0.06)",
@@ -1014,7 +1271,7 @@ function StepDados({
 
         <div style={{ flex: 1, minHeight: 12 }} />
 
-        <PrimaryBtn loading={loading} disabled={nome.trim().split(" ").filter(Boolean).length < 2} onClick={onSubmit}>
+        <PrimaryBtn loading={loading} disabled={!podeSubmeter} onClick={onSubmit}>
           Concluir inscrição
         </PrimaryBtn>
       </div>
@@ -1028,7 +1285,6 @@ function StepPronto({ nome, onLogin }: { nome: string; onLogin: () => void }) {
   const firstName = nome.trim().split(" ")[0] || "Atleta";
   return (
     <Shell dark bg={C.navy}>
-      {/* Background glows */}
       <div style={{ position: "absolute", inset: 0, overflow: "hidden", zIndex: 0 }}>
         <div
           style={{
@@ -1070,15 +1326,7 @@ function StepPronto({ nome, onLogin }: { nome: string; onLogin: () => void }) {
       >
         <div style={{ paddingTop: 64 }} />
 
-        {/* Logo with checkmark */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "relative" }}>
             <div
               style={{
@@ -1184,17 +1432,28 @@ export function CadastroForm() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
-  // Form state
+  // Auth state
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [countdown, setCountdown] = useState(0);
+  const [otpEnviado, setOtpEnviado] = useState(false);
+
+  // Profile state
+  const [tipoUsuario, setTipoUsuario] = useState<"aluno" | "responsavel">("aluno");
   const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
+  const [telefone, setTelefone] = useState("+351 ");
   const [dataNasc, setDataNasc] = useState("");
   const [contactoEmergencia, setContactoEmergencia] = useState("");
-  const [countdown, setCountdown] = useState(0);
-  // Tracks if signUp was already called — avoids re-checking email on back-nav
-  const [otpEnviado, setOtpEnviado] = useState(false);
+  const [categoria, setCategoria] = useState<CategoriaFaixa>("adulto");
+  const [faixa, setFaixa] = useState<CorFaixa | "">("");
+  const [graus, setGraus] = useState(0);
+  const [nomeAluno, setNomeAluno] = useState("");
+
+  function handleCategoria(cat: CategoriaFaixa) {
+    setCategoria(cat);
+    setFaixa("");
+  }
 
   function startCountdown() {
     setCountdown(30);
@@ -1213,7 +1472,6 @@ export function CadastroForm() {
     try {
       const emailNorm = email.trim().toLowerCase();
 
-      // Skip duplicate check if OTP was already sent for this email
       if (!otpEnviado) {
         try {
           const jaExiste = await verificarEmailExistente(emailNorm);
@@ -1222,7 +1480,7 @@ export function CadastroForm() {
             return;
           }
         } catch {
-          // If admin check fails, fall through — signUp will catch real duplicates
+          // fall through — signUp will catch real duplicates
         }
       }
 
@@ -1238,7 +1496,6 @@ export function CadastroForm() {
         setErro("Erro ao enviar código. Tenta novamente.");
         return;
       }
-      // Fallback: Supabase returns identities: [] for already-registered emails
       if (!data.user || data.user.identities?.length === 0) {
         setErro("E-mail já cadastrado. Use um e-mail diferente.");
         return;
@@ -1285,28 +1542,58 @@ export function CadastroForm() {
 
   async function handleConcluir() {
     setErro("");
-    if (nome.trim().split(" ").filter(Boolean).length < 2) return;
+    const nomeValido = nome.trim().split(" ").filter(Boolean).length >= 2;
+    if (!nomeValido) return;
+    if (tipoUsuario === "responsavel") {
+      const nomeAlunoValido = nomeAluno.trim().split(" ").filter(Boolean).length >= 2;
+      if (!nomeAlunoValido) return;
+    }
+
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setErro("Sessão expirada. Começa o registo novamente.");
-        return;
+      const tel = telefoneLimpo(telefone);
+      const dataNascISO = dataParaISO(dataNasc);
+
+      if (tipoUsuario === "aluno") {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setErro("Sessão expirada. Começa o registo novamente.");
+          return;
+        }
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            nome_completo: nome.trim(),
+            telefone: tel,
+            data_nascimento: dataNascISO,
+            contacto_emergencia: contactoEmergencia || null,
+            faixa: faixa || null,
+            graus,
+            categoria,
+          })
+          .eq("id", user.id);
+        if (error) {
+          setErro("Erro ao guardar dados. Tenta novamente.");
+          return;
+        }
+      } else {
+        const result = await concluirCadastroResponsavel({
+          nomeResponsavel: nome.trim(),
+          telefone: tel,
+          contactoEmergencia: contactoEmergencia || null,
+          nomeAluno: nomeAluno.trim(),
+          dataNascAluno: dataNascISO,
+          faixaAluno: faixa || null,
+          grausAluno: graus,
+          categoriaAluno: categoria,
+        });
+        if (!result.ok) {
+          setErro(result.erro ?? "Erro ao concluir registo.");
+          return;
+        }
       }
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          nome_completo: nome.trim(),
-          telefone: telefone || null,
-          data_nascimento: dataNasc || null,
-          contacto_emergencia: contactoEmergencia || null,
-        })
-        .eq("id", user.id);
-      if (error) {
-        setErro("Erro ao guardar dados. Tenta novamente.");
-        return;
-      }
+
       setPasso(4);
     } finally {
       setLoading(false);
@@ -1351,16 +1638,26 @@ export function CadastroForm() {
     case 3:
       return (
         <StepDados
+          tipoUsuario={tipoUsuario}
+          onTipoUsuario={setTipoUsuario}
           nome={nome}
           telefone={telefone}
           dataNasc={dataNasc}
           contactoEmergencia={contactoEmergencia}
+          categoria={categoria}
+          faixa={faixa}
+          graus={graus}
+          nomeAluno={nomeAluno}
           erro={erro}
           loading={loading}
           onNome={setNome}
           onTelefone={setTelefone}
           onDataNasc={setDataNasc}
           onContacto={setContactoEmergencia}
+          onCategoria={handleCategoria}
+          onFaixa={setFaixa}
+          onGraus={setGraus}
+          onNomeAluno={setNomeAluno}
           onBack={() => { setErro(""); setPasso(2); }}
           onSubmit={handleConcluir}
         />

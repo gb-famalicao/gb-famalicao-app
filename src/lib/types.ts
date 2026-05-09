@@ -96,6 +96,7 @@ export interface DependentePerfil {
   faixa: CorFaixa | null;
   graus: number;
   categoria: CategoriaFaixa;
+  mensalidades: Mensalidade[];
 }
 
 export interface Dependente {

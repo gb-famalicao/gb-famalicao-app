@@ -41,7 +41,9 @@ export async function updateSession(request: NextRequest) {
 
   // Authenticated users on regular login pages → go to /perfil
   // /tablet/login is intentionally excluded here — the page handles its own redirect
-  if (user && ["/login", "/cadastro"].includes(pathname)) {
+  // Server actions (POST with Next-Action header) must not be redirected
+  const isServerAction = request.headers.has("next-action");
+  if (user && ["/login", "/cadastro"].includes(pathname) && !isServerAction) {
     const url = request.nextUrl.clone();
     url.pathname = "/perfil";
     return NextResponse.redirect(url);

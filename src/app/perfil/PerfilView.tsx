@@ -435,6 +435,13 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
             icon={<Images size={20} className="text-gray-500" />}
             label="Galeria"
           />
+          {(profile.perfil === "admin" || profile.perfil === "professor") && (
+            <ActionCard
+              onClick={() => router.push("/admin")}
+              icon={<ShieldCheck size={20} className="text-gray-500" />}
+              label="Dashboard"
+            />
+          )}
         </div>
 
         {/* Faixa + Stats */}
@@ -712,6 +719,17 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   .map((n) => n[0])
                   .join("")
                   .toUpperCase();
+                const ultimaMens = dep.mensalidades[0];
+                const mensStatusColor: Record<StatusMensalidade, string> = {
+                  pago:     "text-green-600 bg-green-50",
+                  pendente: "text-amber-600 bg-amber-50",
+                  atrasado: "text-red-600 bg-red-50",
+                };
+                const mensStatusLabel: Record<StatusMensalidade, string> = {
+                  pago:     "Em dia",
+                  pendente: "Pendente",
+                  atrasado: "Atrasado",
+                };
                 return (
                   <button
                     key={dep.id}
@@ -729,11 +747,18 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-medium text-gray-900 truncate">{dep.nome_completo}</p>
-                      {dep.faixa && (
-                        <p className="text-[12px] text-gray-400 mt-0.5">
-                          {labelCorFaixa(dep.faixa)} · {dep.graus} grau{dep.graus !== 1 ? "s" : ""} · <span className="capitalize">{dep.categoria}</span>
-                        </p>
-                      )}
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {dep.faixa && (
+                          <p className="text-[12px] text-gray-400">
+                            {labelCorFaixa(dep.faixa)} · {dep.graus} grau{dep.graus !== 1 ? "s" : ""} · <span className="capitalize">{dep.categoria}</span>
+                          </p>
+                        )}
+                        {ultimaMens && (
+                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full ${mensStatusColor[ultimaMens.status]}`}>
+                            {mensStatusLabel[ultimaMens.status]}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {dep.faixa && (
                       <FaixaBJJ faixa={dep.faixa} graus={dep.graus} categoria={dep.categoria} tamanho="sm" />

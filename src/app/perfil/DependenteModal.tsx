@@ -1,22 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Award, CalendarDays } from "lucide-react";
+import { X, Award, CalendarDays, CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
-import { formatarData, labelCorFaixa } from "@/lib/utils";
-import type { DependentePerfil, HistoricoGraduacao } from "@/lib/types";
+import { formatarData, formatarMoeda, formatarMes, labelCorFaixa } from "@/lib/utils";
+import type { DependentePerfil, HistoricoGraduacao, Mensalidade, StatusMensalidade } from "@/lib/types";
+
+const MENS_BG: Record<StatusMensalidade, string> = {
+  pago:     "bg-green-50 border-green-100",
+  pendente: "bg-amber-50 border-amber-100",
+  atrasado: "bg-red-50 border-red-100",
+};
+
+const MENS_TEXT: Record<StatusMensalidade, string> = {
+  pago:     "text-green-600",
+  pendente: "text-amber-600",
+  atrasado: "text-red-600",
+};
+
+const MENS_STATUS_LABEL: Record<StatusMensalidade, string> = {
+  pago:     "Pago",
+  pendente: "Pendente",
+  atrasado: "Atrasado",
+};
 
 interface Props {
   dependente: DependentePerfil;
   onClose: () => void;
 }
 
+
 export function DependenteModal({ dependente, onClose }: Props) {
   const [presencasCount, setPresencasCount] = useState<number | null>(null);
   const [presencasRecentes, setPresencasRecentes] = useState<{ registrado_em: string }[]>([]);
   const [graduacoes, setGraduacoes] = useState<HistoricoGraduacao[]>([]);
   const [carregando, setCarregando] = useState(true);
+
+  const mensalidades: Mensalidade[] = dependente.mensalidades;
 
   useEffect(() => {
     async function carregar() {
@@ -135,6 +156,37 @@ export function DependenteModal({ dependente, onClose }: Props) {
                   </div>
                 )}
               </div>
+
+              {mensalidades.length > 0 && (
+                <div className="bg-white border border-gray-100 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <CreditCard size={16} className="text-gb-blue" />
+                    <h3 className="font-bold text-gray-900 text-sm">Mensalidades</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {mensalidades.map((m) => (
+                      <div
+                        key={m.id}
+                        className={`flex items-center justify-between rounded-xl border px-3 py-2.5 ${MENS_BG[m.status]}`}
+                      >
+                        <div>
+                          <p className="text-[13px] font-semibold text-gray-800">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">
+                            Venc. {formatarData(m.data_vencimento)}
+                            {m.data_pagamento ? ` · Pago ${formatarData(m.data_pagamento)}` : ""}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[13px] font-bold text-gray-800">{formatarMoeda(m.valor)}</p>
+                          <p className={`text-[11px] font-medium mt-0.5 ${MENS_TEXT[m.status]}`}>
+                            {MENS_STATUS_LABEL[m.status]}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {graduacoes.length > 0 && (
                 <div className="bg-white border border-gray-100 rounded-2xl p-4">
