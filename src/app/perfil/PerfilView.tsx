@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { mascararTelefonePT, formatarTelefonePT, formatarMoeda, formatarMes, formatarData, labelCorFaixa } from "@/lib/utils";
 import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil } from "@/lib/types";
 import { DependenteModal } from "./DependenteModal";
+import { atualizarFotoDependente } from "./dependente-foto-actions";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "success" | "destructive" | "warning" }> = {
   ativo:    { label: "Ativo",    variant: "success" },
@@ -116,10 +117,14 @@ interface PerfilViewProps {
 export function PerfilView({ profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, avisosTimestamps, dependentes }: PerfilViewProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const depFileInputRef = useRef<HTMLInputElement>(null);
+  const uploadingDepIdRef = useRef<string | null>(null);
 
   const [unreadAvisos, setUnreadAvisos] = useState(0);
   const [saindo, setSaindo] = useState(false);
   const [dependenteSelecionado, setDependenteSelecionado] = useState<DependentePerfil | null>(null);
+  const [uploadingDepId, setUploadingDepId] = useState<string | null>(null);
+  const [dependentesState, setDependentesState] = useState(dependentes);
 
   const [faixaOpen, setFaixaOpen] = useState(true);
   const [dadosOpen, setDadosOpen] = useState(false);
@@ -271,6 +276,53 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
     }
   }
 
+  function handleDepAvatarClick(e: React.MouseEvent, depId: string) {
+    e.stopPropagation();
+    if (uploadingDepId) return;
+    uploadingDepIdRef.current = depId;
+    depFileInputRef.current?.click();
+  }
+
+  async function handleDepAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const depId = uploadingDepIdRef.current;
+    if (depFileInputRef.current) depFileInputRef.current.value = "";
+    if (!file || !depId) { uploadingDepIdRef.current = null; return; }
+
+    const tiposPermitidos = ["image/jpeg", "image/png", "image/webp"];
+    if (!tiposPermitidos.includes(file.type)) { uploadingDepIdRef.current = null; return; }
+    if (file.size > 2 * 1024 * 1024) { uploadingDepIdRef.current = null; return; }
+
+    setUploadingDepId(depId);
+
+    try {
+      const blob = await comprimirParaWebP(file);
+      const timestamp = Date.now();
+      const path = `dependentes/${depId}/${timestamp}.webp`;
+
+      const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, blob, { contentType: "image/webp", upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+      const urlComTs = `${publicUrl}?t=${timestamp}`;
+
+      const result = await atualizarFotoDependente(depId, publicUrl);
+      if (!result.ok) throw new Error(result.erro);
+
+      setDependentesState((prev) =>
+        prev.map((d) => d.id === depId ? { ...d, foto_url: urlComTs } : d)
+      );
+    } catch {
+    } finally {
+      setUploadingDepId(null);
+      uploadingDepIdRef.current = null;
+    }
+  }
+
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -374,6 +426,14 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
             aria-label="Selecionar foto de perfil"
             className="hidden"
             onChange={handleAvatarChange}
+          />
+          <input
+            ref={depFileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            aria-label="Selecionar foto do dependente"
+            className="hidden"
+            onChange={handleDepAvatarChange}
           />
 
           <div className="flex-1 min-w-0">
@@ -704,7 +764,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
         )}
 
         {/* Dependentes */}
-        {dependentes.length > 0 && (
+        {dependentesState.length > 0 && (
           <AccordionCard
             open={dependentesOpen}
             onToggle={() => setDependentesOpen((o) => !o)}
@@ -712,7 +772,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
             title="Dependentes"
           >
             <div className="space-y-1">
-              {dependentes.map((dep) => {
+              {dependentesState.map((dep) => {
                 const depIniciais = dep.nome_completo
                   .split(" ")
                   .slice(0, 2)
@@ -730,6 +790,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   pendente: "Pendente",
                   atrasado: "Atrasado",
                 };
+                const isUploadingThis = uploadingDepId === dep.id;
                 return (
                   <button
                     key={dep.id}
@@ -737,13 +798,27 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                     onClick={() => setDependenteSelecionado(dep)}
                     className="w-full flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0 text-left"
                   >
-                    <div className="w-10 h-10 rounded-full bg-[#1a3a6b] flex items-center justify-center overflow-hidden shrink-0">
-                      {dep.foto_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={dep.foto_url} alt={dep.nome_completo} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-white font-bold text-[13px]">{depIniciais}</span>
-                      )}
+                    <div className="relative shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-[#1a3a6b] flex items-center justify-center overflow-hidden">
+                        {dep.foto_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={dep.foto_url} alt={dep.nome_completo} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white font-bold text-[13px]">{depIniciais}</span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDepAvatarClick(e, dep.id)}
+                        disabled={!!uploadingDepId}
+                        className="absolute -bottom-0.5 -right-0.5 w-[18px] h-[18px] rounded-full bg-[#c8102e] border-[1.5px] border-white flex items-center justify-center shadow"
+                        aria-label={`Alterar foto de ${dep.nome_completo}`}
+                      >
+                        {isUploadingThis
+                          ? <Loader2 size={8} className="text-white animate-spin" />
+                          : <Camera size={8} className="text-white" />
+                        }
+                      </button>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-medium text-gray-900 truncate">{dep.nome_completo}</p>
@@ -774,7 +849,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
 
       {dependenteSelecionado && (
         <DependenteModal
-          dependente={dependenteSelecionado}
+          dependente={dependentesState.find((d) => d.id === dependenteSelecionado.id) ?? dependenteSelecionado}
           onClose={() => setDependenteSelecionado(null)}
         />
       )}
