@@ -10,10 +10,26 @@ interface ActionResult {
   reservaId?: string;
 }
 
-export async function reservar(aulaId: string): Promise<ActionResult> {
+async function verificarPermissao(userId: string, alunoId: string): Promise<boolean> {
+  if (alunoId === userId) return true;
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("dependentes")
+    .select("dependente_id")
+    .eq("responsavel_id", userId)
+    .eq("dependente_id", alunoId)
+    .maybeSingle();
+  return !!data;
+}
+
+export async function reservar(aulaId: string, alunoId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, erro: "Não autenticado." };
+
+  if (!(await verificarPermissao(user.id, alunoId))) {
+    return { ok: false, erro: "Sem permissão." };
+  }
 
   const admin = createAdminClient();
 
@@ -40,12 +56,12 @@ export async function reservar(aulaId: string): Promise<ActionResult> {
     .from("reservas")
     .select("id, status")
     .eq("aula_id", aulaId)
-    .eq("aluno_id", user.id)
+    .eq("aluno_id", alunoId)
     .maybeSingle();
 
   if (existente) {
     if (existente.status === "confirmada") {
-      return { ok: false, erro: "Já tens reserva nesta aula." };
+      return { ok: false, erro: "Já existe reserva nesta aula." };
     }
     const { error } = await admin
       .from("reservas")
@@ -58,7 +74,7 @@ export async function reservar(aulaId: string): Promise<ActionResult> {
 
   const { data: nova, error } = await admin
     .from("reservas")
-    .insert({ aula_id: aulaId, aluno_id: user.id, status: "confirmada" })
+    .insert({ aula_id: aulaId, aluno_id: alunoId, status: "confirmada" })
     .select("id")
     .single();
 
@@ -68,17 +84,21 @@ export async function reservar(aulaId: string): Promise<ActionResult> {
   return { ok: true, reservaId: nova.id };
 }
 
-export async function cancelarMinhaReserva(reservaId: string): Promise<ActionResult> {
+export async function cancelarMinhaReserva(reservaId: string, alunoId: string): Promise<ActionResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { ok: false, erro: "Não autenticado." };
+
+  if (!(await verificarPermissao(user.id, alunoId))) {
+    return { ok: false, erro: "Sem permissão." };
+  }
 
   const admin = createAdminClient();
   const { error } = await admin
     .from("reservas")
     .update({ status: "cancelada" })
     .eq("id", reservaId)
-    .eq("aluno_id", user.id);
+    .eq("aluno_id", alunoId);
 
   if (error) return { ok: false, erro: error.message };
   revalidatePath("/aulas");
