@@ -16,8 +16,12 @@ export interface AulaParaAluno {
   status: StatusAula;
   turma: { id: string; nome: string; categoria: CategoriaFaixa } | null;
   reservas_confirmadas: number;
-  minha_reserva_id: string | null;
-  minha_reserva_status: StatusReserva | null;
+}
+
+export interface DependenteOpcao {
+  id: string;
+  nome_completo: string;
+  categoria: CategoriaFaixa;
 }
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -35,16 +39,24 @@ function formatarHorario(h: string) {
 
 interface Props {
   aulas: AulaParaAluno[];
+  reservasPorAluno: Record<string, Record<string, { id: string; status: StatusReserva }>>;
   categoriaAluno: CategoriaFaixa;
+  userId: string;
+  dependentes: DependenteOpcao[];
 }
 
-export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
+export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, categoriaAluno, userId, dependentes }: Props) {
   const router = useRouter();
   const [aulas, setAulas] = useState(aulasProp);
-  const [acao, setAcao]   = useState<string | null>(null);
-  const [erro, setErro]   = useState("");
+  const [reservasPorAluno, setReservasPorAluno] = useState(reservasProp);
+  const [selecionadoId, setSelecionadoId] = useState(userId);
+  const [acao, setAcao] = useState<string | null>(null);
+  const [erro, setErro] = useState("");
 
-  // Build 7-day tabs starting today
+  const selecionadoCategoria: CategoriaFaixa = selecionadoId === userId
+    ? categoriaAluno
+    : (dependentes.find((d) => d.id === selecionadoId)?.categoria ?? categoriaAluno);
+
   const dias = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
@@ -57,62 +69,86 @@ export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
 
   const [diaAtivo, setDiaAtivo] = useState(dias[0].iso);
 
+  const minhasReservas = reservasPorAluno[selecionadoId] ?? {};
+
   const aulasNoDia = useMemo(
-    () => aulas.filter((a) => a.data === diaAtivo).sort((a, b) => a.horario.localeCompare(b.horario)),
-    [aulas, diaAtivo],
+    () =>
+      aulas
+        .filter((a) => a.data === diaAtivo && a.turma?.categoria === selecionadoCategoria)
+        .sort((a, b) => a.horario.localeCompare(b.horario)),
+    [aulas, diaAtivo, selecionadoCategoria],
   );
 
-  // Count reserved for tab badge
   const reservasPorDia = useMemo(() => {
     const map: Record<string, number> = {};
+    const minhas = reservasPorAluno[selecionadoId] ?? {};
     for (const a of aulas) {
-      if (a.minha_reserva_status === "confirmada") {
+      if (minhas[a.id]?.status === "confirmada" && a.turma?.categoria === selecionadoCategoria) {
         map[a.data] = (map[a.data] ?? 0) + 1;
       }
     }
     return map;
-  }, [aulas]);
+  }, [aulas, reservasPorAluno, selecionadoId, selecionadoCategoria]);
+
+  function handleSelecionado(id: string) {
+    setSelecionadoId(id);
+    setErro("");
+  }
 
   async function handleReservar(aulaId: string) {
-    setAcao(aulaId); setErro("");
-    const result = await reservar(aulaId);
+    setAcao(aulaId);
+    setErro("");
+    const result = await reservar(aulaId, selecionadoId);
     if (!result.ok) {
       setErro(result.erro ?? "Erro ao reservar.");
     } else {
-      setAulas((prev) => prev.map((a) =>
-        a.id === aulaId
-          ? { ...a, minha_reserva_id: result.reservaId!, minha_reserva_status: "confirmada", reservas_confirmadas: a.reservas_confirmadas + 1 }
-          : a,
-      ));
+      setAulas((prev) =>
+        prev.map((a) =>
+          a.id === aulaId ? { ...a, reservas_confirmadas: a.reservas_confirmadas + 1 } : a,
+        ),
+      );
+      setReservasPorAluno((prev) => ({
+        ...prev,
+        [selecionadoId]: {
+          ...(prev[selecionadoId] ?? {}),
+          [aulaId]: { id: result.reservaId!, status: "confirmada" },
+        },
+      }));
     }
     setAcao(null);
   }
 
   async function handleCancelar(reservaId: string, aulaId: string) {
     if (!confirm("Cancelar a reserva nesta aula?")) return;
-    setAcao(reservaId); setErro("");
-    const result = await cancelarMinhaReserva(reservaId);
+    setAcao(reservaId);
+    setErro("");
+    const result = await cancelarMinhaReserva(reservaId, selecionadoId);
     if (!result.ok) {
       setErro(result.erro ?? "Erro ao cancelar.");
     } else {
-      setAulas((prev) => prev.map((a) =>
-        a.id === aulaId
-          ? { ...a, minha_reserva_id: null, minha_reserva_status: null, reservas_confirmadas: Math.max(0, a.reservas_confirmadas - 1) }
-          : a,
-      ));
+      setAulas((prev) =>
+        prev.map((a) =>
+          a.id === aulaId ? { ...a, reservas_confirmadas: Math.max(0, a.reservas_confirmadas - 1) } : a,
+        ),
+      );
+      setReservasPorAluno((prev) => {
+        const novo = { ...(prev[selecionadoId] ?? {}) };
+        delete novo[aulaId];
+        return { ...prev, [selecionadoId]: novo };
+      });
     }
     setAcao(null);
   }
 
   const diaAtivoDate = parseDateLocal(diaAtivo);
-  const diaAtivoNome = diaAtivoDate.getDate() === new Date().getDate() &&
+  const diaAtivoNome =
+    diaAtivoDate.getDate() === new Date().getDate() &&
     diaAtivoDate.getMonth() === new Date().getMonth()
-    ? "Hoje"
-    : DIAS_COMPLETO[diaAtivoDate.getDay()];
+      ? "Hoje"
+      : DIAS_COMPLETO[diaAtivoDate.getDay()];
 
   return (
     <div className="min-h-screen flex flex-col bg-gb-gray">
-      {/* Header */}
       <div className="bg-gb-black px-5 pt-10 pb-5">
         <div className="flex items-center justify-between mb-5">
           <button
@@ -130,15 +166,46 @@ export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
         </div>
 
         <h1 className="text-white font-bold text-xl mb-1">Aulas</h1>
-        <p className="text-white/50 text-xs capitalize">{categoriaAluno}</p>
+        <p className="text-white/50 text-xs capitalize">{selecionadoCategoria}</p>
 
-        {/* Day tabs */}
+        {dependentes.length > 0 && (
+          <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+              type="button"
+              onClick={() => handleSelecionado(userId)}
+              className={cn(
+                "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                selecionadoId === userId
+                  ? "bg-white text-gb-blue"
+                  : "bg-white/10 text-white/70 hover:bg-white/20",
+              )}
+            >
+              Eu
+            </button>
+            {dependentes.map((d) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => handleSelecionado(d.id)}
+                className={cn(
+                  "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                  selecionadoId === d.id
+                    ? "bg-white text-gb-blue"
+                    : "bg-white/10 text-white/70 hover:bg-white/20",
+                )}
+              >
+                {d.nome_completo.split(" ")[0]}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-hide">
           {dias.map(({ iso, date }) => {
-            const isToday  = iso === dias[0].iso;
-            const isActive = iso === diaAtivo;
+            const isToday   = iso === dias[0].iso;
+            const isActive  = iso === diaAtivo;
             const temReserva = !!reservasPorDia[iso];
-            const temAulas   = aulas.some((a) => a.data === iso);
+            const temAulas  = aulas.some((a) => a.data === iso && a.turma?.categoria === selecionadoCategoria);
 
             return (
               <button
@@ -164,10 +231,12 @@ export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
                   <span className="absolute bottom-1 w-1 h-1 rounded-full bg-gb-blue" />
                 )}
                 {temReserva && (
-                  <span className={cn(
-                    "absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold",
-                    isActive ? "bg-white text-gb-blue" : "bg-green-500 text-white",
-                  )}>
+                  <span
+                    className={cn(
+                      "absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold",
+                      isActive ? "bg-white text-gb-blue" : "bg-green-500 text-white",
+                    )}
+                  >
                     ✓
                   </span>
                 )}
@@ -177,7 +246,6 @@ export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
         </div>
       </div>
 
-      {/* Content */}
       <div className="flex-1 px-4 py-4 pb-8 space-y-3">
         {erro && (
           <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{erro}</div>
@@ -196,11 +264,11 @@ export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
           </div>
         ) : (
           aulasNoDia.map((aula) => {
-            const reservada    = aula.minha_reserva_status === "confirmada";
-            const lotado       = !reservada && aula.reservas_confirmadas >= aula.lotacao_maxima;
-            const vagasLivres  = aula.lotacao_maxima - aula.reservas_confirmadas;
+            const reservada       = minhasReservas[aula.id]?.status === "confirmada";
+            const minhaReservaId  = minhasReservas[aula.id]?.id ?? null;
+            const lotado          = !reservada && aula.reservas_confirmadas >= aula.lotacao_maxima;
             const isLoadingAula   = acao === aula.id;
-            const isLoadingCancel = acao === (aula.minha_reserva_id ?? "");
+            const isLoadingCancel = acao === (minhaReservaId ?? "");
 
             return (
               <div
@@ -211,24 +279,25 @@ export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
                 )}
               >
                 <div className="flex items-start gap-4">
-                  {/* Time block */}
-                  <div className={cn(
-                    "w-16 h-16 rounded-xl flex flex-col items-center justify-center shrink-0",
-                    reservada ? "bg-gb-blue" : lotado ? "bg-gray-100" : "bg-gb-blue/10",
-                  )}>
-                    <span className={cn(
-                      "text-lg font-black tabular-nums leading-tight",
-                      reservada ? "text-white" : lotado ? "text-gray-400" : "text-gb-blue",
-                    )}>
+                  <div
+                    className={cn(
+                      "w-16 h-16 rounded-xl flex flex-col items-center justify-center shrink-0",
+                      reservada ? "bg-gb-blue" : lotado ? "bg-gray-100" : "bg-gb-blue/10",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "text-lg font-black tabular-nums leading-tight",
+                        reservada ? "text-white" : lotado ? "text-gray-400" : "text-gb-blue",
+                      )}
+                    >
                       {formatarHorario(aula.horario)}
                     </span>
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 text-sm leading-tight">{aula.turma?.nome ?? "—"}</p>
 
-                    {/* Vagas */}
                     <div className="flex items-center gap-2 mt-1.5">
                       <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
                         <div
@@ -243,16 +312,12 @@ export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
                           style={{ width: `${Math.min(100, (aula.reservas_confirmadas / aula.lotacao_maxima) * 100)}%` }}
                         />
                       </div>
-                      <span className={cn(
-                        "text-xs font-medium whitespace-nowrap",
-                        lotado ? "text-red-500" : "text-gray-500",
-                      )}>
+                      <span className={cn("text-xs font-medium whitespace-nowrap", lotado ? "text-red-500" : "text-gray-500")}>
                         {aula.reservas_confirmadas}/{aula.lotacao_maxima}
                       </span>
                       <Users size={11} className={lotado ? "text-red-400" : "text-gray-400"} />
                     </div>
 
-                    {/* Status badge */}
                     {reservada && (
                       <p className="text-xs text-gb-blue font-semibold mt-1.5 flex items-center gap-1">
                         <Check size={11} />
@@ -265,7 +330,6 @@ export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
                   </div>
                 </div>
 
-                {/* Action buttons */}
                 <div className="mt-3 flex gap-2">
                   {!reservada && !lotado && (
                     <button
@@ -281,7 +345,7 @@ export function AulasView({ aulas: aulasProp, categoriaAluno }: Props) {
                   {reservada && (
                     <button
                       type="button"
-                      onClick={() => handleCancelar(aula.minha_reserva_id!, aula.id)}
+                      onClick={() => handleCancelar(minhaReservaId!, aula.id)}
                       disabled={!!acao}
                       className="flex-1 h-9 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium flex items-center justify-center gap-2 hover:bg-red-100 transition-colors disabled:opacity-50"
                     >
