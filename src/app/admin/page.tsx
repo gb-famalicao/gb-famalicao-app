@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import {
   Users, CalendarCheck, TrendingUp, AlertTriangle, ChevronRight, UserX, Award,
 } from "lucide-react";
@@ -45,7 +46,7 @@ function fmt(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-async function getDashboardData() {
+async function getDashboardData(isAdmin: boolean) {
   const admin = createAdminClient();
 
   const hoje = new Date();
@@ -72,7 +73,9 @@ async function getDashboardData() {
       .select("*", { count: "exact", head: true })
       .gte("dia_registro", inicioMes)
       .lte("dia_registro", fimMes),
-    admin.from("mensalidades").select("aluno_id").eq("status", "atrasado"),
+    isAdmin
+      ? admin.from("mensalidades").select("aluno_id").eq("status", "atrasado")
+      : Promise.resolve({ data: [] }),
     admin.from("presencas")
       .select("id, registrado_em, aluno_id")
       .order("registrado_em", { ascending: false })
@@ -80,11 +83,13 @@ async function getDashboardData() {
     admin.from("presencas")
       .select("dia_registro")
       .gte("dia_registro", sixMonthsAgoStr),
-    admin.from("mensalidades")
-      .select("aluno_id")
-      .eq("status", "pendente")
-      .gte("data_vencimento", hojeStr)
-      .lte("data_vencimento", setesDiasStr),
+    isAdmin
+      ? admin.from("mensalidades")
+          .select("aluno_id")
+          .eq("status", "pendente")
+          .gte("data_vencimento", hojeStr)
+          .lte("data_vencimento", setesDiasStr)
+      : Promise.resolve({ data: [] }),
     admin.from("historico_graduacoes")
       .select("id, aluno_id, faixa_anterior, graus_anterior, faixa_nova, graus_nova, data_graduacao, profiles(nome_completo, categoria)")
       .order("data_graduacao", { ascending: false })
@@ -232,6 +237,13 @@ async function getDashboardData() {
 }
 
 export default async function AdminDashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("perfil").eq("id", user.id).single()
+    : { data: null };
+  const isAdmin = profile?.perfil === "admin";
+
   const {
     ativos, inativos, trancados,
     presencasMes, frequenciaMedia, alunosAtrasados,
@@ -242,7 +254,7 @@ export default async function AdminDashboardPage() {
     mensalData,
     finEmDia, finVenceBreve, finAtrasado,
     mes, ano,
-  } = await getDashboardData();
+  } = await getDashboardData(isAdmin);
 
   const totalAlunos = ativos + inativos + trancados;
 
@@ -310,82 +322,86 @@ export default async function AdminDashboardPage() {
           <p className="text-xs text-gray-400">média por aluno ativo este mês</p>
         </div>
 
-        {/* Card: Mensalidades atrasadas */}
-        <div className={`rounded-2xl border shadow-sm p-5 flex flex-col gap-4 ${
-          alunosAtrasados > 0 ? "bg-red-50 border-red-200" : "bg-white border-gray-100"
-        }`}>
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Mensalidades</span>
-            <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-              alunosAtrasados > 0 ? "bg-red-100" : "bg-gray-100"
-            }`}>
-              <AlertTriangle size={18} className={alunosAtrasados > 0 ? "text-red-500" : "text-gray-400"} />
-            </span>
+        {/* Card: Mensalidades atrasadas — apenas admin */}
+        {isAdmin && (
+          <div className={`rounded-2xl border shadow-sm p-5 flex flex-col gap-4 ${
+            alunosAtrasados > 0 ? "bg-red-50 border-red-200" : "bg-white border-gray-100"
+          }`}>
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Mensalidades</span>
+              <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                alunosAtrasados > 0 ? "bg-red-100" : "bg-gray-100"
+              }`}>
+                <AlertTriangle size={18} className={alunosAtrasados > 0 ? "text-red-500" : "text-gray-400"} />
+              </span>
+            </div>
+            <div className={`text-4xl font-black ${alunosAtrasados > 0 ? "text-red-600" : "text-gray-900"}`}>
+              {alunosAtrasados}
+            </div>
+            <p className={`text-xs ${alunosAtrasados > 0 ? "text-red-400" : "text-gray-400"}`}>
+              {alunosAtrasados === 0
+                ? "nenhum aluno com mensalidade atrasada"
+                : `aluno${alunosAtrasados > 1 ? "s" : ""} com mensalidade atrasada`}
+            </p>
           </div>
-          <div className={`text-4xl font-black ${alunosAtrasados > 0 ? "text-red-600" : "text-gray-900"}`}>
-            {alunosAtrasados}
-          </div>
-          <p className={`text-xs ${alunosAtrasados > 0 ? "text-red-400" : "text-gray-400"}`}>
-            {alunosAtrasados === 0
-              ? "nenhum aluno com mensalidade atrasada"
-              : `aluno${alunosAtrasados > 1 ? "s" : ""} com mensalidade atrasada`}
-          </p>
-        </div>
+        )}
 
       </div>
 
-      {/* ── Situação financeira ── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-sm font-bold text-gray-700">Situação financeira</h2>
-          <span className="text-xs text-gray-400">{mes}</span>
+      {/* ── Situação financeira — apenas admin ── */}
+      {isAdmin && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-bold text-gray-700">Situação financeira</h2>
+            <span className="text-xs text-gray-400">{mes}</span>
+          </div>
+
+          <div className="grid grid-cols-3 divide-x divide-gray-100">
+
+            {/* Em dia */}
+            <div className="flex flex-col items-center gap-2 px-4 py-1">
+              <span className="text-4xl font-black text-emerald-600 tabular-nums leading-none">
+                {finEmDia}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                Em dia
+              </span>
+            </div>
+
+            {/* Vence em breve */}
+            <div className="flex flex-col items-center gap-2 px-4 py-1">
+              <span className={`text-4xl font-black tabular-nums leading-none ${
+                finVenceBreve > 0 ? "text-amber-500" : "text-gray-300"
+              }`}>
+                {finVenceBreve}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                  finVenceBreve > 0 ? "bg-amber-400" : "bg-gray-200"
+                }`} />
+                Vence em 7 dias
+              </span>
+            </div>
+
+            {/* Atrasado */}
+            <div className="flex flex-col items-center gap-2 px-4 py-1">
+              <span className={`text-4xl font-black tabular-nums leading-none ${
+                finAtrasado > 0 ? "text-red-600" : "text-gray-300"
+              }`}>
+                {finAtrasado}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                  finAtrasado > 0 ? "bg-red-500" : "bg-gray-200"
+                }`} />
+                Atrasado
+              </span>
+            </div>
+
+          </div>
         </div>
-
-        <div className="grid grid-cols-3 divide-x divide-gray-100">
-
-          {/* Em dia */}
-          <div className="flex flex-col items-center gap-2 px-4 py-1">
-            <span className="text-4xl font-black text-emerald-600 tabular-nums leading-none">
-              {finEmDia}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-              Em dia
-            </span>
-          </div>
-
-          {/* Vence em breve */}
-          <div className="flex flex-col items-center gap-2 px-4 py-1">
-            <span className={`text-4xl font-black tabular-nums leading-none ${
-              finVenceBreve > 0 ? "text-amber-500" : "text-gray-300"
-            }`}>
-              {finVenceBreve}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${
-                finVenceBreve > 0 ? "bg-amber-400" : "bg-gray-200"
-              }`} />
-              Vence em 7 dias
-            </span>
-          </div>
-
-          {/* Atrasado */}
-          <div className="flex flex-col items-center gap-2 px-4 py-1">
-            <span className={`text-4xl font-black tabular-nums leading-none ${
-              finAtrasado > 0 ? "text-red-600" : "text-gray-300"
-            }`}>
-              {finAtrasado}
-            </span>
-            <span className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${
-                finAtrasado > 0 ? "bg-red-500" : "bg-gray-200"
-              }`} />
-              Atrasado
-            </span>
-          </div>
-
-        </div>
-      </div>
+      )}
 
       {/* ── Gráfico de presenças ── */}
       <div className="mb-6">

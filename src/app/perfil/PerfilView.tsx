@@ -874,10 +874,12 @@ function AccordionCard({
 }) {
   return (
     <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-3.5"
+        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onToggle()}
+        className="w-full flex items-center justify-between px-4 py-3.5 cursor-pointer"
       >
         <div className="flex items-center gap-2">
           {icon}
@@ -890,7 +892,7 @@ function AccordionCard({
             className={`text-gray-400 transition-transform duration-200 ease-in-out${open ? "" : " rotate-180"}`}
           />
         </div>
-      </button>
+      </div>
       <div className={`overflow-hidden transition-[max-height] duration-[250ms] ease-in-out ${open ? "max-h-[2000px]" : "max-h-0"}`}>
         <div className="px-4 pb-4 border-t border-gray-100 pt-3">
           {children}

@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { href: "/admin/albuns", label: "Galeria",   icon: Images,          disabled: false, exact: false },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ perfil }: { perfil: "admin" | "professor" }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -43,7 +43,7 @@ export function AdminSidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV_ITEMS.map(({ href, label, icon: Icon, disabled, exact }) => {
+          {NAV_ITEMS.filter((i) => perfil === "admin" || i.href !== "/admin/financeiro").map(({ href, label, icon: Icon, disabled, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
@@ -105,7 +105,7 @@ export function AdminSidebar() {
         </div>
         {/* Scrollable nav row */}
         <nav className="flex items-center gap-1 overflow-x-auto px-3 pb-2 scrollbar-none">
-          {NAV_ITEMS.filter((i) => !i.disabled).map(({ href, label, icon: Icon, exact }) => {
+          {NAV_ITEMS.filter((i) => !i.disabled && (perfil === "admin" || i.href !== "/admin/financeiro")).map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
