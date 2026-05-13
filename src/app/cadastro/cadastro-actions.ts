@@ -16,8 +16,10 @@ export async function concluirCadastroResponsavel(params: {
   nomeResponsavel: string;
   telefone: string | null;
   contactoEmergencia: string | null;
+  nif: string | null;
   nomeAluno: string;
   dataNascAluno: string | null;
+  nifAluno: string | null;
   faixaAluno: CorFaixa | null;
   grausAluno: number;
   categoriaAluno: CategoriaFaixa;
@@ -37,6 +39,7 @@ export async function concluirCadastroResponsavel(params: {
         nome_completo: params.nomeResponsavel,
         telefone: params.telefone,
         contacto_emergencia: params.contactoEmergencia,
+        nif: params.nif,
       })
       .eq("id", user.id);
 
@@ -46,6 +49,7 @@ export async function concluirCadastroResponsavel(params: {
       id: alunoId,
       nome_completo: params.nomeAluno,
       data_nascimento: params.dataNascAluno,
+      nif: params.nifAluno,
       faixa: params.faixaAluno,
       graus: params.grausAluno,
       categoria: params.categoriaAluno,

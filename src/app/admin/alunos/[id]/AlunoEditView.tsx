@@ -125,6 +125,7 @@ export function AlunoEditView({
     telefone:        aluno.telefone ?? "",
     data_nascimento: aluno.data_nascimento ?? "",
     iban:            aluno.iban ?? "",
+    nif:             aluno.nif ?? "",
     aulas_manual:    String(aluno.aulas_manual ?? 0),
     faixa:           aluno.faixa ?? "branca",
     graus:           String(aluno.graus ?? 0),
@@ -206,6 +207,7 @@ export function AlunoEditView({
         telefone:        form.telefone.trim() || null,
         data_nascimento: form.data_nascimento || null,
         iban:            form.iban.trim() || null,
+        nif:             form.nif.trim() || null,
         aulas_manual:    Number(form.aulas_manual),
         faixa:           form.faixa as CorFaixa,
         graus:           Number(form.graus),
@@ -220,6 +222,7 @@ export function AlunoEditView({
         telefone:        form.telefone.trim() || null,
         data_nascimento: form.data_nascimento || null,
         iban:            form.iban.trim() || null,
+        nif:             form.nif.trim() || null,
         aulas_manual:    Number(form.aulas_manual),
         faixa:           form.faixa as CorFaixa,
         graus:           Number(form.graus),
@@ -497,6 +500,10 @@ export function AlunoEditView({
           <div className="space-y-1.5">
             <Label htmlFor="data_nascimento">Data de nascimento</Label>
             <Input id="data_nascimento" type="date" title="Data de nascimento" value={form.data_nascimento} onChange={(e) => setForm((f) => ({ ...f, data_nascimento: e.target.value }))} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="nif">NIF</Label>
+            <Input id="nif" placeholder="123 456 789" value={form.nif} onChange={(e) => setForm((f) => ({ ...f, nif: e.target.value }))} />
           </div>
           <div className="sm:col-span-2 space-y-1.5">
             <Label htmlFor="iban">IBAN</Label>

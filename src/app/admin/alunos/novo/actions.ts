@@ -22,6 +22,7 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
   const categoria           = (formData.get("categoria") as string) || "adulto";
   const perfil              = (formData.get("perfil") as string) || "aluno";
   const iban                = (formData.get("iban") as string | null)?.trim() || null;
+  const nif                 = (formData.get("nif") as string | null)?.trim() || null;
   const valorMensalidade    = (formData.get("valor_mensalidade") as string | null)?.trim() || null;
   const primeiroVencimento  = (formData.get("primeiro_vencimento") as string | null)?.trim() || null;
 
@@ -40,6 +41,7 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
         telefone,
         data_nascimento: dataNasc,
         iban,
+        nif,
         faixa,
         graus,
         categoria,
@@ -99,6 +101,7 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
         telefone,
         data_nascimento: dataNasc,
         iban,
+        nif,
         faixa,
         graus,
         categoria,

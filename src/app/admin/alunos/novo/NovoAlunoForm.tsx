@@ -35,7 +35,7 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
 
   const [form, setForm] = useState({
     email: "", senha: "", nome_completo: "",
-    telefone: "", data_nascimento: "", iban: "",
+    telefone: "", data_nascimento: "", iban: "", nif: "",
     faixa: "branca" as CorFaixa,
     graus: "0",
     categoria: "adulto" as CategoriaFaixa,
@@ -204,6 +204,17 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
               onChange={(e) => set("data_nascimento", e.target.value)}
               disabled={carregando}
               max={new Date().toISOString().split("T")[0]}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="nif">NIF</Label>
+            <Input
+              id="nif"
+              placeholder="123 456 789"
+              value={form.nif}
+              onChange={(e) => set("nif", e.target.value)}
+              disabled={carregando}
             />
           </div>
 
