@@ -1055,6 +1055,8 @@ function StepDados({
   faixa,
   graus,
   nomeAluno,
+  nif,
+  nifAluno,
   erro,
   loading,
   onNome,
@@ -1065,6 +1067,8 @@ function StepDados({
   onFaixa,
   onGraus,
   onNomeAluno,
+  onNif,
+  onNifAluno,
   onBack,
   onSubmit,
 }: {
@@ -1078,6 +1082,8 @@ function StepDados({
   faixa: CorFaixa | "";
   graus: number;
   nomeAluno: string;
+  nif: string;
+  nifAluno: string;
   erro: string;
   loading: boolean;
   onNome: (v: string) => void;
@@ -1088,6 +1094,8 @@ function StepDados({
   onFaixa: (v: CorFaixa | "") => void;
   onGraus: (v: number) => void;
   onNomeAluno: (v: string) => void;
+  onNif: (v: string) => void;
+  onNifAluno: (v: string) => void;
   onBack: () => void;
   onSubmit: () => void;
 }) {
@@ -1186,6 +1194,19 @@ function StepDados({
         </Field>
 
         {isResponsavel && (
+          <Field label="NIF do responsável">
+            <TextInput
+              type="text"
+              placeholder="123 456 789"
+              value={nif}
+              onChange={onNif}
+              disabled={loading}
+              inputMode="numeric"
+            />
+          </Field>
+        )}
+
+        {isResponsavel && (
           <Field label="Nome do Aluno">
             <TextInput
               type="text"
@@ -1210,6 +1231,30 @@ function StepDados({
             disabled={loading}
           />
         </Field>
+
+        {isResponsavel ? (
+          <Field label="NIF da criança">
+            <TextInput
+              type="text"
+              placeholder="123 456 789"
+              value={nifAluno}
+              onChange={onNifAluno}
+              disabled={loading}
+              inputMode="numeric"
+            />
+          </Field>
+        ) : (
+          <Field label="NIF">
+            <TextInput
+              type="text"
+              placeholder="123 456 789"
+              value={nif}
+              onChange={onNif}
+              disabled={loading}
+              inputMode="numeric"
+            />
+          </Field>
+        )}
 
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
@@ -1449,6 +1494,8 @@ export function CadastroForm() {
   const [faixa, setFaixa] = useState<CorFaixa | "">("");
   const [graus, setGraus] = useState(0);
   const [nomeAluno, setNomeAluno] = useState("");
+  const [nif, setNif] = useState("");
+  const [nifAluno, setNifAluno] = useState("");
 
   function handleCategoria(cat: CategoriaFaixa) {
     setCategoria(cat);
@@ -1568,6 +1615,7 @@ export function CadastroForm() {
             telefone: tel,
             data_nascimento: dataNascISO,
             contacto_emergencia: contactoEmergencia || null,
+            nif: nif.trim() || null,
             faixa: faixa || null,
             graus,
             categoria,
@@ -1582,8 +1630,10 @@ export function CadastroForm() {
           nomeResponsavel: nome.trim(),
           telefone: tel,
           contactoEmergencia: contactoEmergencia || null,
+          nif: nif.trim() || null,
           nomeAluno: nomeAluno.trim(),
           dataNascAluno: dataNascISO,
+          nifAluno: nifAluno.trim() || null,
           faixaAluno: faixa || null,
           grausAluno: graus,
           categoriaAluno: categoria,
@@ -1648,6 +1698,8 @@ export function CadastroForm() {
           faixa={faixa}
           graus={graus}
           nomeAluno={nomeAluno}
+          nif={nif}
+          nifAluno={nifAluno}
           erro={erro}
           loading={loading}
           onNome={setNome}
@@ -1658,6 +1710,8 @@ export function CadastroForm() {
           onFaixa={setFaixa}
           onGraus={setGraus}
           onNomeAluno={setNomeAluno}
+          onNif={setNif}
+          onNifAluno={setNifAluno}
           onBack={() => { setErro(""); setPasso(2); }}
           onSubmit={handleConcluir}
         />
