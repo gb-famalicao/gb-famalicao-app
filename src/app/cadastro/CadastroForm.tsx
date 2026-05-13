@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, KeyboardEvent, ClipboardEvent } from "react";
+import { useRef, useState, useEffect, KeyboardEvent, ClipboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -109,6 +109,23 @@ function dataParaISO(ddmmaaaa: string): string | null {
 
 function telefoneLimpo(telefone: string): string | null {
   return telefone.replace(/\D/g, "").length > 3 ? telefone.trim() : null;
+}
+
+function calcularIdade(dataDDMMAAAA: string): number | null {
+  const nums = dataDDMMAAAA.replace(/\D/g, "");
+  if (nums.length !== 8) return null;
+  const dia = parseInt(nums.slice(0, 2), 10);
+  const mes = parseInt(nums.slice(2, 4), 10) - 1;
+  const ano = parseInt(nums.slice(4, 8), 10);
+  const nasc = new Date(ano, mes, dia);
+  if (isNaN(nasc.getTime())) return null;
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  const aindaNaoFezAnos =
+    hoje.getMonth() < nasc.getMonth() ||
+    (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate());
+  if (aindaNaoFezAnos) idade--;
+  return idade;
 }
 
 // ─── Shared primitives ───────────────────────────────────────
@@ -996,10 +1013,12 @@ function CategoriaPicker({
   categoria,
   onCategoria,
   disabled,
+  soInfantil,
 }: {
   categoria: CategoriaFaixa;
   onCategoria: (v: CategoriaFaixa) => void;
   disabled?: boolean;
+  soInfantil?: boolean;
 }) {
   return (
     <div
@@ -1014,24 +1033,26 @@ function CategoriaPicker({
     >
       {(["adulto", "infantil"] as CategoriaFaixa[]).map((c) => {
         const selected = categoria === c;
+        const bloqueado = !!(soInfantil && c === "adulto");
         return (
           <button
             key={c}
             type="button"
-            disabled={disabled}
+            disabled={disabled || bloqueado}
             onClick={() => onCategoria(c)}
             style={{
               flex: 1,
               height: 36,
               borderRadius: 8,
               background: selected ? C.ink : "transparent",
-              color: selected ? "#fff" : C.ink2,
+              color: selected ? "#fff" : bloqueado ? C.ink3 : C.ink2,
               border: "none",
-              cursor: disabled ? "not-allowed" : "pointer",
+              cursor: disabled || bloqueado ? "not-allowed" : "pointer",
               fontSize: 14,
               fontWeight: selected ? 700 : 500,
               fontFamily: "inherit",
               transition: "all 0.15s",
+              opacity: bloqueado ? 0.45 : 1,
             }}
           >
             {c === "adulto" ? "Adulto" : "Infantil"}
@@ -1101,7 +1122,15 @@ function StepDados({
 }) {
   const nomeValido = nome.trim().split(" ").filter(Boolean).length >= 2;
   const nomeAlunoValido = nomeAluno.trim().split(" ").filter(Boolean).length >= 2;
-  const podeSubmeter = tipoUsuario === "aluno" ? nomeValido : (nomeValido && nomeAlunoValido);
+  const idadeAluno = calcularIdade(dataNasc);
+  const menorDe13 = idadeAluno !== null && idadeAluno <= 12;
+  const menorDe17 = idadeAluno !== null && idadeAluno <= 16;
+  const dataNascValida = dataParaISO(dataNasc) !== null;
+  const telefoneValido = telefoneLimpo(telefone) !== null;
+  const podeSubmeter =
+    tipoUsuario === "aluno"
+      ? nomeValido && dataNascValida && telefoneValido && !menorDe17
+      : nomeValido && nomeAlunoValido && dataNascValida && telefoneValido;
   const isResponsavel = tipoUsuario === "responsavel";
 
   return (
@@ -1165,6 +1194,48 @@ function StepDados({
             })}
           </div>
         </div>
+
+        {tipoUsuario === "aluno" && menorDe17 && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 14px",
+              borderRadius: 12,
+              background: "rgba(204,0,0,0.06)",
+              border: `1px solid rgba(204,0,0,0.3)`,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 2 }}>
+              <path d="M8 1.5L14.5 13H1.5L8 1.5Z" stroke={C.red} strokeWidth="1.4" strokeLinejoin="round" />
+              <path d="M8 6v3.5M8 11.5h.01" stroke={C.red} strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: C.red, lineHeight: 1.5, marginBottom: 8, fontWeight: 600 }}>
+                Menores de 17 anos devem registar-se como Responsável de Aluno.
+              </div>
+              <button
+                type="button"
+                onClick={() => onTipoUsuario("responsavel")}
+                style={{
+                  background: C.red,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Mudar para Responsável →
+              </button>
+            </div>
+          </div>
+        )}
 
         <Field label={isResponsavel ? "Nome Completo do Responsável" : "Nome completo"} focused>
           <TextInput
@@ -1260,7 +1331,7 @@ function StepDados({
           <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
             {isResponsavel ? "Categoria do aluno" : "Categoria"}
           </div>
-          <CategoriaPicker categoria={categoria} onCategoria={onCategoria} disabled={loading} />
+          <CategoriaPicker categoria={categoria} onCategoria={onCategoria} disabled={loading} soInfantil={menorDe13} />
         </div>
 
         <div style={{ marginBottom: 12 }}>
@@ -1501,6 +1572,14 @@ export function CadastroForm() {
     setCategoria(cat);
     setFaixa("");
   }
+
+  useEffect(() => {
+    const idade = calcularIdade(dataNasc);
+    if (idade !== null && idade <= 12) {
+      setCategoria("infantil");
+      setFaixa("");
+    }
+  }, [dataNasc]);
 
   function startCountdown() {
     setCountdown(30);
