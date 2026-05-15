@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { labelCorFaixa } from "@/lib/utils";
-import { verificarEmailExistente, concluirCadastroResponsavel } from "./cadastro-actions";
+import { verificarEmailExistente, concluirCadastro } from "./cadastro-actions";
 import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
 
 // ─── Palette ────────────────────────────────────────────────
@@ -1044,7 +1044,17 @@ function CategoriaPicker({
 
 // ─── Step 3 — Personal data ──────────────────────────────────
 
+type TipoUsuario = "aluno" | "responsavel" | "aluno_responsavel";
+type DependenteForm = {
+  nome: string;
+  dataNasc: string;
+  categoria: CategoriaFaixa;
+  faixa: CorFaixa | "";
+  graus: number;
+};
+
 function StepDados({
+  email,
   tipoUsuario,
   onTipoUsuario,
   nome,
@@ -1054,7 +1064,7 @@ function StepDados({
   categoria,
   faixa,
   graus,
-  nomeAluno,
+  dependentes,
   erro,
   loading,
   onNome,
@@ -1064,12 +1074,13 @@ function StepDados({
   onCategoria,
   onFaixa,
   onGraus,
-  onNomeAluno,
+  onDependentes,
   onBack,
   onSubmit,
 }: {
-  tipoUsuario: "aluno" | "responsavel";
-  onTipoUsuario: (t: "aluno" | "responsavel") => void;
+  email: string;
+  tipoUsuario: TipoUsuario;
+  onTipoUsuario: (t: TipoUsuario) => void;
   nome: string;
   telefone: string;
   dataNasc: string;
@@ -1077,7 +1088,7 @@ function StepDados({
   categoria: CategoriaFaixa;
   faixa: CorFaixa | "";
   graus: number;
-  nomeAluno: string;
+  dependentes: DependenteForm[];
   erro: string;
   loading: boolean;
   onNome: (v: string) => void;
@@ -1087,14 +1098,29 @@ function StepDados({
   onCategoria: (v: CategoriaFaixa) => void;
   onFaixa: (v: CorFaixa | "") => void;
   onGraus: (v: number) => void;
-  onNomeAluno: (v: string) => void;
+  onDependentes: (deps: DependenteForm[]) => void;
   onBack: () => void;
   onSubmit: () => void;
 }) {
   const nomeValido = nome.trim().split(" ").filter(Boolean).length >= 2;
-  const nomeAlunoValido = nomeAluno.trim().split(" ").filter(Boolean).length >= 2;
-  const podeSubmeter = tipoUsuario === "aluno" ? nomeValido : (nomeValido && nomeAlunoValido);
+  const temDependentes = tipoUsuario !== "aluno";
+  const todosDepValidos = dependentes.every(
+    (d) => d.nome.trim().split(" ").filter(Boolean).length >= 2
+  );
+  const podeSubmeter = nomeValido && (!temDependentes || todosDepValidos);
   const isResponsavel = tipoUsuario === "responsavel";
+  const mostraAdulto = tipoUsuario !== "responsavel";
+
+  function updateDep(idx: number, patch: Partial<DependenteForm>) {
+    const next = dependentes.map((d, i) => (i === idx ? { ...d, ...patch } : d));
+    onDependentes(next);
+  }
+  function addDep() {
+    onDependentes([...dependentes, { nome: "", dataNasc: "", categoria: "infantil", faixa: "", graus: 0 }]);
+  }
+  function removeDep(idx: number) {
+    onDependentes(dependentes.filter((_, i) => i !== idx));
+  }
 
   return (
     <Shell>
@@ -1113,6 +1139,17 @@ function StepDados({
           Os teus dados
         </h1>
 
+        {/* Email read-only display */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+            Email
+          </div>
+          <div style={{ fontSize: 14, color: C.ink, padding: "10px 12px", background: "#fff", border: `1.5px solid ${C.line}`, borderRadius: 10 }}>
+            {email}
+          </div>
+          <div style={{ fontSize: 11, color: C.ink3, marginTop: 4 }}>Confirmado por código. Pode alterar mais tarde em /perfil.</div>
+        </div>
+
         {/* Tipo toggle */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 8 }}>
@@ -1128,7 +1165,11 @@ function StepDados({
               gap: 4,
             }}
           >
-            {(["aluno", "responsavel"] as const).map((t) => {
+            {([
+              { value: "aluno", label: "Aluno" },
+              { value: "responsavel", label: "Responsável" },
+              { value: "aluno_responsavel", label: "Aluno e Resp." },
+            ] as { value: TipoUsuario; label: string }[]).map(({ value: t, label }) => {
               const selected = tipoUsuario === t;
               return (
                 <button
@@ -1144,14 +1185,14 @@ function StepDados({
                     color: selected ? "#fff" : C.ink2,
                     border: "none",
                     cursor: loading ? "not-allowed" : "pointer",
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: selected ? 700 : 500,
                     fontFamily: "inherit",
                     transition: "all 0.15s",
-                    padding: "0 8px",
+                    padding: "0 4px",
                   }}
                 >
-                  {t === "aluno" ? "Aluno" : "Responsável de Aluno"}
+                  {label}
                 </button>
               );
             })}
@@ -1185,52 +1226,42 @@ function StepDados({
           />
         </Field>
 
-        {isResponsavel && (
-          <Field label="Nome do Aluno">
-            <TextInput
-              type="text"
-              placeholder="Pedro Silva"
-              value={nomeAluno}
-              onChange={onNomeAluno}
-              disabled={loading}
-            />
-            {nomeAluno.length > 0 && !nomeAlunoValido && (
-              <div style={{ fontSize: 12, color: C.ink3, marginTop: 4 }}>Insere nome e apelido do aluno.</div>
-            )}
-          </Field>
+        {/* Adult fields — hidden for pure responsavel */}
+        {mostraAdulto && (
+          <>
+            <Field label="Data de nascimento">
+              <TextInput
+                type="text"
+                inputMode="numeric"
+                placeholder="DD/MM/AAAA"
+                value={dataNasc}
+                onChange={(v) => onDataNasc(mascaraData(v))}
+                disabled={loading}
+              />
+            </Field>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+                Categoria
+              </div>
+              <CategoriaPicker categoria={categoria} onCategoria={onCategoria} disabled={loading} />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+                Faixa
+              </div>
+              <BeltPicker categoria={categoria} faixa={faixa} onFaixa={onFaixa} disabled={loading} />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+                Graus
+              </div>
+              <GrauPicker graus={graus} onGraus={onGraus} disabled={loading} />
+            </div>
+          </>
         )}
-
-        <Field label={isResponsavel ? "Data de nascimento do aluno" : "Data de nascimento"}>
-          <TextInput
-            type="text"
-            inputMode="numeric"
-            placeholder="DD/MM/AAAA"
-            value={dataNasc}
-            onChange={(v) => onDataNasc(mascaraData(v))}
-            disabled={loading}
-          />
-        </Field>
-
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
-            {isResponsavel ? "Categoria do aluno" : "Categoria"}
-          </div>
-          <CategoriaPicker categoria={categoria} onCategoria={onCategoria} disabled={loading} />
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
-            {isResponsavel ? "Faixa do aluno" : "Faixa"}
-          </div>
-          <BeltPicker categoria={categoria} faixa={faixa} onFaixa={onFaixa} disabled={loading} />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
-            Graus
-          </div>
-          <GrauPicker graus={graus} onGraus={onGraus} disabled={loading} />
-        </div>
 
         <Field label="Contacto de emergência">
           <TextInput
@@ -1241,6 +1272,125 @@ function StepDados({
             disabled={loading}
           />
         </Field>
+
+        {/* Dependentes */}
+        {temDependentes && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 10 }}>
+              {dependentes.length === 1 ? "Dados do filho / aluno" : "Filhos / Alunos"}
+            </div>
+
+            {dependentes.map((dep, idx) => (
+              <div
+                key={idx}
+                style={{
+                  marginBottom: 16,
+                  padding: "16px 14px",
+                  background: "#fff",
+                  border: `1.5px solid ${C.line}`,
+                  borderRadius: 14,
+                }}
+              >
+                {dependentes.length > 1 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.ink2 }}>Filho {idx + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeDep(idx)}
+                      disabled={loading}
+                      style={{
+                        fontSize: 12,
+                        color: C.red,
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      Remover
+                    </button>
+                  </div>
+                )}
+
+                <Field label="Nome completo do aluno" focused={false}>
+                  <TextInput
+                    type="text"
+                    placeholder="Pedro Silva"
+                    value={dep.nome}
+                    onChange={(v) => updateDep(idx, { nome: v })}
+                    disabled={loading}
+                  />
+                  {dep.nome.length > 0 && dep.nome.trim().split(" ").filter(Boolean).length < 2 && (
+                    <div style={{ fontSize: 12, color: C.ink3, marginTop: 4 }}>Insere nome e apelido do aluno.</div>
+                  )}
+                </Field>
+
+                <Field label="Data de nascimento do aluno">
+                  <TextInput
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="DD/MM/AAAA"
+                    value={dep.dataNasc}
+                    onChange={(v) => updateDep(idx, { dataNasc: mascaraData(v) })}
+                    disabled={loading}
+                  />
+                </Field>
+
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+                    Categoria do aluno
+                  </div>
+                  <CategoriaPicker
+                    categoria={dep.categoria}
+                    onCategoria={(cat) => updateDep(idx, { categoria: cat, faixa: "" })}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+                    Faixa do aluno
+                  </div>
+                  <BeltPicker
+                    categoria={dep.categoria}
+                    faixa={dep.faixa}
+                    onFaixa={(f) => updateDep(idx, { faixa: f })}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div style={{ marginBottom: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
+                    Graus
+                  </div>
+                  <GrauPicker graus={dep.graus} onGraus={(g) => updateDep(idx, { graus: g })} disabled={loading} />
+                </div>
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={addDep}
+              disabled={loading}
+              style={{
+                width: "100%",
+                height: 44,
+                borderRadius: 10,
+                background: "transparent",
+                border: `1.5px dashed ${C.line}`,
+                color: C.ink2,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: loading ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                marginBottom: 8,
+              }}
+            >
+              + Adicionar outro filho
+            </button>
+          </div>
+        )}
 
         <div
           style={{
@@ -1440,7 +1590,7 @@ export function CadastroForm() {
   const [otpEnviado, setOtpEnviado] = useState(false);
 
   // Profile state
-  const [tipoUsuario, setTipoUsuario] = useState<"aluno" | "responsavel">("aluno");
+  const [tipoUsuario, setTipoUsuario] = useState<TipoUsuario>("aluno");
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("+351 ");
   const [dataNasc, setDataNasc] = useState("");
@@ -1448,7 +1598,9 @@ export function CadastroForm() {
   const [categoria, setCategoria] = useState<CategoriaFaixa>("adulto");
   const [faixa, setFaixa] = useState<CorFaixa | "">("");
   const [graus, setGraus] = useState(0);
-  const [nomeAluno, setNomeAluno] = useState("");
+  const [dependentes, setDependentes] = useState<DependenteForm[]>([
+    { nome: "", dataNasc: "", categoria: "infantil", faixa: "", graus: 0 },
+  ]);
 
   function handleCategoria(cat: CategoriaFaixa) {
     setCategoria(cat);
@@ -1544,9 +1696,11 @@ export function CadastroForm() {
     setErro("");
     const nomeValido = nome.trim().split(" ").filter(Boolean).length >= 2;
     if (!nomeValido) return;
-    if (tipoUsuario === "responsavel") {
-      const nomeAlunoValido = nomeAluno.trim().split(" ").filter(Boolean).length >= 2;
-      if (!nomeAlunoValido) return;
+    if (tipoUsuario !== "aluno") {
+      const algumDepInvalido = dependentes.some(
+        (d) => d.nome.trim().split(" ").filter(Boolean).length < 2
+      );
+      if (algumDepInvalido) return;
     }
 
     setLoading(true);
@@ -1554,44 +1708,27 @@ export function CadastroForm() {
       const tel = telefoneLimpo(telefone);
       const dataNascISO = dataParaISO(dataNasc);
 
-      if (tipoUsuario === "aluno") {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setErro("Sessão expirada. Começa o registo novamente.");
-          return;
-        }
-        const { error } = await supabase
-          .from("profiles")
-          .update({
-            nome_completo: nome.trim(),
-            telefone: tel,
-            data_nascimento: dataNascISO,
-            contacto_emergencia: contactoEmergencia || null,
-            faixa: faixa || null,
-            graus,
-            categoria,
-          })
-          .eq("id", user.id);
-        if (error) {
-          setErro("Erro ao guardar dados. Tenta novamente.");
-          return;
-        }
-      } else {
-        const result = await concluirCadastroResponsavel({
-          nomeResponsavel: nome.trim(),
-          telefone: tel,
-          contactoEmergencia: contactoEmergencia || null,
-          nomeAluno: nomeAluno.trim(),
-          dataNascAluno: dataNascISO,
-          faixaAluno: faixa || null,
-          grausAluno: graus,
-          categoriaAluno: categoria,
-        });
-        if (!result.ok) {
-          setErro(result.erro ?? "Erro ao concluir registo.");
-          return;
-        }
+      const result = await concluirCadastro({
+        tipo: tipoUsuario,
+        nomeResponsavel: nome.trim(),
+        telefone: tel,
+        contactoEmergencia: contactoEmergencia || null,
+        dataNascimento: dataNascISO,
+        faixaAdulto: faixa || null,
+        grausAdulto: graus,
+        categoriaAdulto: categoria,
+        dependentes: dependentes.map((d) => ({
+          nome: d.nome.trim(),
+          dataNasc: dataParaISO(d.dataNasc),
+          faixa: d.faixa || null,
+          graus: d.graus,
+          categoria: d.categoria,
+        })),
+      });
+
+      if (!result.ok) {
+        setErro(result.erro ?? "Erro ao concluir registo.");
+        return;
       }
 
       setPasso(4);
@@ -1638,6 +1775,7 @@ export function CadastroForm() {
     case 3:
       return (
         <StepDados
+          email={email}
           tipoUsuario={tipoUsuario}
           onTipoUsuario={setTipoUsuario}
           nome={nome}
@@ -1647,7 +1785,7 @@ export function CadastroForm() {
           categoria={categoria}
           faixa={faixa}
           graus={graus}
-          nomeAluno={nomeAluno}
+          dependentes={dependentes}
           erro={erro}
           loading={loading}
           onNome={setNome}
@@ -1657,7 +1795,7 @@ export function CadastroForm() {
           onCategoria={handleCategoria}
           onFaixa={setFaixa}
           onGraus={setGraus}
-          onNomeAluno={setNomeAluno}
+          onDependentes={setDependentes}
           onBack={() => { setErro(""); setPasso(2); }}
           onSubmit={handleConcluir}
         />
