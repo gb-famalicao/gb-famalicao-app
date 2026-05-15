@@ -121,6 +121,24 @@ export async function adicionarPresenca(alunoId: string, data: string): Promise<
   return { ok: true, presencaId: nova.id, registrado_em: nova.registrado_em };
 }
 
+export async function editarMensalidade(
+  mensalidadeId: string,
+  alunoId: string,
+  dados: { valor: number; data_vencimento: string },
+): Promise<ActionResult> {
+  const admin = createAdminClient();
+
+  const { error } = await admin
+    .from("mensalidades")
+    .update({ valor: dados.valor, data_vencimento: dados.data_vencimento })
+    .eq("id", mensalidadeId);
+
+  if (error) return { ok: false, erro: error.message };
+
+  revalidatePath(`/admin/alunos/${alunoId}`);
+  return { ok: true };
+}
+
 export async function excluirMensalidade(mensalidadeId: string, alunoId: string): Promise<ActionResult> {
   const admin = createAdminClient();
 

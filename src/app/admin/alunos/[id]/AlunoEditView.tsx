@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Check, Loader2, User, CalendarDays, CreditCard,
-  Plus, RotateCcw, Award, Trash2, Camera, Users,
+  Plus, RotateCcw, Award, Trash2, Camera, Users, Pencil, X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
@@ -28,6 +28,7 @@ import {
   adicionarPresenca as serverAdicionarPresenca,
   excluirPresenca as serverExcluirPresenca,
   excluirMensalidade as serverExcluirMensalidade,
+  editarMensalidade as serverEditarMensalidade,
 } from "./mensalidades-actions";
 import { registrarGraduacao, excluirGraduacao } from "./graduacao-actions";
 import { uploadFotoAluno } from "./foto-actions";
@@ -143,6 +144,7 @@ export function AlunoEditView({
   const [mensalidades, setMensalidades] = useState(mensalidadesProp);
   const [acao, setAcao] = useState<string | null>(null);
   const [acaoErro, setAcaoErro] = useState("");
+  const [editando, setEditando] = useState<{ id: string; valor: string; dataVencimento: string } | null>(null);
 
   // ── Presenças ──────────────────────────────────────────────────────────────
   const [presencas, setPresencas] = useState(presencasProp);
@@ -349,6 +351,24 @@ export function AlunoEditView({
     const result = await serverExcluirMensalidade(mensalidadeId, aluno.id);
     if (!result.ok) setAcaoErro(result.erro ?? "Erro ao excluir mensalidade.");
     else setMensalidades((prev) => prev.filter((m) => m.id !== mensalidadeId));
+    setAcao(null);
+  }
+
+  async function handleSalvarEdicao() {
+    if (!editando) return;
+    const valor = parseFloat(editando.valor.replace(",", "."));
+    if (isNaN(valor) || valor <= 0) { setAcaoErro("Valor inválido."); return; }
+    if (!editando.dataVencimento) { setAcaoErro("Data de vencimento obrigatória."); return; }
+    setAcao(`${editando.id}-editar`); setAcaoErro("");
+    const result = await serverEditarMensalidade(editando.id, aluno.id, { valor, data_vencimento: editando.dataVencimento });
+    if (!result.ok) {
+      setAcaoErro(result.erro ?? "Erro ao guardar alterações.");
+    } else {
+      setMensalidades((prev) =>
+        prev.map((m) => m.id === editando.id ? { ...m, valor, data_vencimento: editando.dataVencimento } : m)
+      );
+      setEditando(null);
+    }
     setAcao(null);
   }
 
@@ -893,37 +913,77 @@ export function AlunoEditView({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {mensalidades.map((m) => (
-                    <tr key={m.id}>
-                      <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{formatarData(m.data_vencimento)}</td>
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{m.valor != null ? formatarMoeda(m.valor) : "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_MENS_CLASS[m.status]}`}>
-                          {STATUS_MENS_LABEL[m.status]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{m.data_pagamento ? formatarData(m.data_pagamento) : "—"}</td>
-                      <td className="px-4 py-3">
-                        {m.status !== "pago" ? (
-                          <button type="button" onClick={() => handleMarcarPago(m.id)} disabled={!!acao} className="flex items-center gap-1 text-xs text-green-700 hover:text-green-900 font-medium transition-colors disabled:opacity-50">
-                            {acao === m.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                            Pago
-                          </button>
-                        ) : (
-                          <button type="button" onClick={() => handleDesmarcarPago(m.id)} disabled={!!acao} className="flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-medium transition-colors disabled:opacity-50">
-                            {acao === `${m.id}-desmarcar` ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
-                            Desmarcar
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <button type="button" onClick={() => handleExcluirMensalidade(m.id)} disabled={!!acao} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-50" title="Excluir mensalidade">
-                          {acao === `${m.id}-excluir` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {mensalidades.map((m) => {
+                    const emEdicao = editando?.id === m.id;
+                    return (
+                      <tr key={m.id} className={emEdicao ? "bg-blue-50/40" : undefined}>
+                        <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</td>
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                          {emEdicao ? (
+                            <input
+                              type="date"
+                              value={editando.dataVencimento}
+                              onChange={(e) => setEditando((prev) => prev && { ...prev, dataVencimento: e.target.value })}
+                              className="h-7 w-36 rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+                            />
+                          ) : formatarData(m.data_vencimento)}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                          {emEdicao ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editando.valor}
+                              onChange={(e) => setEditando((prev) => prev && { ...prev, valor: e.target.value })}
+                              className="h-7 w-24 rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+                            />
+                          ) : (m.valor != null ? formatarMoeda(m.valor) : "—")}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_MENS_CLASS[m.status]}`}>
+                            {STATUS_MENS_LABEL[m.status]}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{m.data_pagamento ? formatarData(m.data_pagamento) : "—"}</td>
+                        <td className="px-4 py-3">
+                          {emEdicao ? (
+                            <div className="flex items-center gap-2">
+                              <button type="button" onClick={handleSalvarEdicao} disabled={!!acao} className="flex items-center gap-1 text-xs text-gb-blue hover:text-gb-blue-dark font-medium transition-colors disabled:opacity-50">
+                                {acao === `${m.id}-editar` ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                                Guardar
+                              </button>
+                              <button type="button" onClick={() => { setEditando(null); setAcaoErro(""); }} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ) : m.status !== "pago" ? (
+                            <button type="button" onClick={() => handleMarcarPago(m.id)} disabled={!!acao} className="flex items-center gap-1 text-xs text-green-700 hover:text-green-900 font-medium transition-colors disabled:opacity-50">
+                              {acao === m.id ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                              Pago
+                            </button>
+                          ) : (
+                            <button type="button" onClick={() => handleDesmarcarPago(m.id)} disabled={!!acao} className="flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-medium transition-colors disabled:opacity-50">
+                              {acao === `${m.id}-desmarcar` ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+                              Desmarcar
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {!emEdicao && (
+                            <div className="flex items-center gap-2">
+                              <button type="button" onClick={() => { setEditando({ id: m.id, valor: String(m.valor ?? ""), dataVencimento: m.data_vencimento }); setAcaoErro(""); }} disabled={!!acao} className="text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-50" title="Editar mensalidade">
+                                <Pencil size={12} />
+                              </button>
+                              <button type="button" onClick={() => handleExcluirMensalidade(m.id)} disabled={!!acao} className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-50" title="Excluir mensalidade">
+                                {acao === `${m.id}-excluir` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
