@@ -1911,6 +1911,7 @@ export function CadastroForm() {
       const dataNascISO = dataParaISO(dataNasc);
 
       const result = await concluirCadastro({
+        email: email.trim().toLowerCase(),
         tipo: tipoUsuario,
         nomeResponsavel: nome.trim(),
         telefone: tel,

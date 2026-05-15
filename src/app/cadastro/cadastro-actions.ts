@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
+import { sendContractEmail } from "@/lib/send-contract-email";
 
 export async function verificarEmailExistente(email: string): Promise<boolean> {
   const supabase = createAdminClient();
@@ -57,6 +58,7 @@ async function gerarMensalidades(alunoId: string, valor: number) {
 }
 
 export async function concluirCadastro(params: {
+  email: string;
   tipo: "aluno" | "responsavel" | "aluno_responsavel";
   nomeResponsavel: string;
   telefone: string | null;
@@ -147,6 +149,8 @@ export async function concluirCadastro(params: {
         await gerarMensalidades(depId, valorDep);
       }
     }
+
+    await sendContractEmail(params.email, params.nomeResponsavel);
 
     return { ok: true };
   } catch (err) {
