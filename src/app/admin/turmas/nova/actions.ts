@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
 
 export interface CriarTurmaResult {
@@ -10,6 +11,9 @@ export interface CriarTurmaResult {
 }
 
 export async function criarTurma(formData: FormData): Promise<CriarTurmaResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
   const nome          = ((formData.get("nome") as string) ?? "").trim();
   const dia_semana    = Number(formData.get("dia_semana") ?? 1);
   const horario       = ((formData.get("horario") as string) ?? "").trim();

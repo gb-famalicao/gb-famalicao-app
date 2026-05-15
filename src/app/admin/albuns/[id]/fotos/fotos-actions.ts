@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
 
 const BUCKET = "galeria";
@@ -21,9 +21,8 @@ export interface UploadResult {
 }
 
 export async function uploadFotos(albumId: string, formData: FormData): Promise<UploadResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, uploaded: 0, erros: ["Não autenticado."] };
+  const auth = await requireAdmin();
+  if (!auth.ok) return { ok: false, uploaded: 0, erros: [auth.erro] };
 
   const files = formData.getAll("fotos") as File[];
   if (!files.length) return { ok: false, uploaded: 0, erros: ["Nenhum ficheiro enviado."] };
@@ -60,7 +59,7 @@ export async function uploadFotos(albumId: string, formData: FormData): Promise<
     const { error: dbError } = await admin.from("fotos").insert({
       album_id: albumId,
       url: publicUrl,
-      autor_id: user.id,
+      autor_id: auth.userId,
     });
 
     if (dbError) {
@@ -82,6 +81,8 @@ export async function apagarFoto(
   fotoUrl: string,
   albumId: string,
 ): Promise<{ ok: boolean; erro?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const path = storagePathFromUrl(fotoUrl);
@@ -105,6 +106,8 @@ export async function definirCapa(
   albumId: string,
   fotoUrl: string,
 ): Promise<{ ok: boolean; erro?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin.from("albuns").update({ capa_url: fotoUrl }).eq("id", albumId);
   if (error) return { ok: false, erro: error.message };
@@ -119,6 +122,8 @@ export async function editarLegenda(
   legenda: string,
   albumId: string,
 ): Promise<{ ok: boolean; erro?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin
     .from("fotos")

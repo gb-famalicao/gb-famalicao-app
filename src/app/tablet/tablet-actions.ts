@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireTablet } from "@/lib/auth-guard";
 import type { CorFaixa } from "@/lib/types";
 
 export interface AlunoOpcao {
@@ -18,6 +19,8 @@ export interface AulaOpcao {
 }
 
 export async function buscarAlunos(): Promise<AlunoOpcao[]> {
+  const auth = await requireTablet();
+  if (!auth.ok) return [];
   const admin = createAdminClient();
   const { data } = await admin
     .from("profiles")
@@ -29,6 +32,8 @@ export async function buscarAlunos(): Promise<AlunoOpcao[]> {
 }
 
 export async function buscarAulasDisponiveis(): Promise<AulaOpcao[]> {
+  const auth = await requireTablet();
+  if (!auth.ok) return [];
   const admin = createAdminClient();
   const hoje = new Date().toISOString().split("T")[0];
   const { data } = await admin
@@ -62,6 +67,8 @@ export async function registrarPresencaManual(
   alunoId: string,
   aulaId: string
 ): Promise<PresencaManualResult> {
+  const auth = await requireTablet();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();

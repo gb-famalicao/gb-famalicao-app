@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 
@@ -11,6 +12,9 @@ export interface CriarAlunoResult {
 }
 
 export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
   const semLogin            = formData.get("sem_login") === "true";
   const email               = (formData.get("email") as string | null)?.trim() ?? "";
   const senha               = (formData.get("senha") as string | null) ?? "";

@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import type { CorFaixa, CategoriaFaixa, HistoricoGraduacao } from "@/lib/types";
 
 export async function registrarGraduacao(
@@ -14,9 +14,10 @@ export async function registrarGraduacao(
   dataGraduacao: string,
   observacoes?: string,
 ): Promise<{ ok: true; graduacao: HistoricoGraduacao } | { ok: false; erro: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
   const admin = createAdminClient();
-  const auth  = await createClient();
-  const { data: { user } } = await auth.auth.getUser();
 
   const { error: profileError } = await admin
     .from("profiles")
@@ -33,7 +34,7 @@ export async function registrarGraduacao(
       graus_anterior: grausAnterior,
       faixa_nova:     faixaNova,
       graus_nova:     grausNova,
-      graduado_por:   user?.id ?? null,
+      graduado_por:   auth.userId,
       data_graduacao: dataGraduacao,
       observacoes:    observacoes || null,
     })
@@ -47,6 +48,8 @@ export async function registrarGraduacao(
 export async function excluirGraduacao(
   id: string,
 ): Promise<{ ok: boolean; erro?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin
     .from("historico_graduacoes")

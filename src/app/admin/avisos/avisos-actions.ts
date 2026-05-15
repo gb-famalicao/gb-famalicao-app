@@ -1,13 +1,9 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
-
-interface ActionResult {
-  ok: boolean;
-  erro?: string;
-}
+import type { ActionResult } from "@/lib/types";
 
 export async function criarAviso(
   titulo: string,
@@ -15,14 +11,13 @@ export async function criarAviso(
   fixado: boolean,
   publicado: boolean
 ): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, erro: "Não autenticado." };
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
 
   const admin = createAdminClient();
   const { error } = await admin
     .from("avisos")
-    .insert({ titulo, conteudo, fixado, publicado, autor_id: user.id });
+    .insert({ titulo, conteudo, fixado, publicado, autor_id: auth.userId });
   if (error) return { ok: false, erro: error.message };
   revalidatePath("/admin/avisos");
   return { ok: true };
@@ -35,6 +30,8 @@ export async function editarAviso(
   fixado: boolean,
   publicado: boolean
 ): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin
     .from("avisos")
@@ -46,6 +43,8 @@ export async function editarAviso(
 }
 
 export async function apagarAviso(id: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin.from("avisos").delete().eq("id", id);
   if (error) return { ok: false, erro: error.message };
@@ -54,6 +53,8 @@ export async function apagarAviso(id: string): Promise<ActionResult> {
 }
 
 export async function toggleFixado(id: string, fixado: boolean): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin.from("avisos").update({ fixado }).eq("id", id);
   if (error) return { ok: false, erro: error.message };
@@ -62,6 +63,8 @@ export async function toggleFixado(id: string, fixado: boolean): Promise<ActionR
 }
 
 export async function togglePublicado(id: string, publicado: boolean): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin.from("avisos").update({ publicado }).eq("id", id);
   if (error) return { ok: false, erro: error.message };

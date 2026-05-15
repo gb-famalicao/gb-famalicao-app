@@ -1,27 +1,24 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
-
-interface ActionResult {
-  ok: boolean;
-  erro?: string;
-}
+import type { ActionResult } from "@/lib/types";
 
 export async function criarAlbum(titulo: string, descricao: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, erro: "Não autenticado." };
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
 
   const admin = createAdminClient();
-  const { error } = await admin.from("albuns").insert({ titulo, descricao: descricao || null, autor_id: user.id });
+  const { error } = await admin.from("albuns").insert({ titulo, descricao: descricao || null, autor_id: auth.userId });
   if (error) return { ok: false, erro: error.message };
   revalidatePath("/admin/albuns");
   return { ok: true };
 }
 
 export async function editarAlbum(id: string, titulo: string, descricao: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin.from("albuns").update({ titulo, descricao: descricao || null }).eq("id", id);
   if (error) return { ok: false, erro: error.message };
@@ -38,6 +35,8 @@ function storagePathFromUrl(url: string): string | null {
 }
 
 export async function apagarAlbum(id: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { data: fotos } = await admin.from("fotos").select("url").eq("album_id", id);

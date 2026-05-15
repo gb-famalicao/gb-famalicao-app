@@ -1,12 +1,16 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
 
 export async function uploadFotoAluno(
   alunoId: string,
   formData: FormData,
 ): Promise<{ ok: boolean; url?: string; erro?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+
   const file = formData.get("foto") as File | null;
   if (!file || file.size === 0) return { ok: false, erro: "Nenhum ficheiro enviado." };
 

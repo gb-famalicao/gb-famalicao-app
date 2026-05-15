@@ -1,12 +1,15 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
 
 export async function atualizarResponsavel(
   dependenteId: string,
   responsavelId: string | null,
 ): Promise<{ ok: boolean; erro?: string }> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { error: delErr } = await admin

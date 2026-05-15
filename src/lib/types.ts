@@ -1,4 +1,5 @@
 export type PerfilUsuario = "aluno" | "professor" | "admin" | "tablet" | "responsavel";
+export interface ActionResult { ok: boolean; erro?: string; }
 export type StatusMensalidade = "pendente" | "pago" | "atrasado";
 
 export interface Mensalidade {

@@ -1,10 +1,10 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
-import type { StatusAula, StatusReserva, RecorrenciaTurma, CategoriaFaixa } from "@/lib/types";
+import type { ActionResult, StatusAula, StatusReserva, RecorrenciaTurma, CategoriaFaixa } from "@/lib/types";
 
-interface ActionResult { ok: boolean; erro?: string; }
 interface GerarResult extends ActionResult { criadas?: number; }
 
 type TurmaUpdate = {
@@ -42,6 +42,8 @@ export interface AdicionarAulaResult extends ActionResult {
 }
 
 export async function salvarTurma(turmaId: string, data: TurmaUpdate): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin.from("turmas").update(data).eq("id", turmaId);
   if (error) return { ok: false, erro: error.message };
@@ -51,6 +53,8 @@ export async function salvarTurma(turmaId: string, data: TurmaUpdate): Promise<A
 }
 
 export async function toggleTurmaAtiva(turmaId: string, ativa: boolean): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin.from("turmas").update({ ativa }).eq("id", turmaId);
   if (error) return { ok: false, erro: error.message };
@@ -60,6 +64,8 @@ export async function toggleTurmaAtiva(turmaId: string, ativa: boolean): Promise
 }
 
 export async function gerarAulas(turmaId: string, semanas: number): Promise<GerarResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { data, error } = await admin.rpc("gerar_aulas", {
     p_turma_id: turmaId,
@@ -106,6 +112,8 @@ export async function atualizarStatusAula(
   status: StatusAula,
   turmaId: string,
 ): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin.from("aulas").update({ status }).eq("id", aulaId);
   if (error) return { ok: false, erro: error.message };
@@ -114,6 +122,8 @@ export async function atualizarStatusAula(
 }
 
 export async function excluirAula(aulaId: string, turmaId: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { count } = await admin
@@ -137,6 +147,8 @@ export async function adicionarAulaAvulsa(
   horario: string,
   lotacaoMaxima: number,
 ): Promise<AdicionarAulaResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { data: nova, error } = await admin
@@ -155,6 +167,8 @@ export async function adicionarAulaAvulsa(
 }
 
 export async function excluirTurma(turmaId: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { data: aulasData } = await admin
@@ -200,6 +214,8 @@ export async function atualizarStatusReserva(
   status: StatusReserva,
   turmaId: string,
 ): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const { error } = await admin.from("reservas").update({ status }).eq("id", reservaId);
   if (error) return { ok: false, erro: error.message };

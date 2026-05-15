@@ -124,28 +124,15 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
     try {
       const supabase = createClient();
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      console.log("[gerar_qr_token] sessão:", sessionData?.session?.user?.email ?? "SEM SESSÃO");
-
       const { data, error } = await supabase.rpc("gerar_qr_token", { p_aluno_ids: alunoIds });
 
       if (error) {
-        console.error("[gerar_qr_token] erro bruto:", error);
-        console.error("[gerar_qr_token] typeof:", typeof error);
-        console.error("[gerar_qr_token] keys:", Object.keys(error));
-        console.error("[gerar_qr_token] JSON:", JSON.stringify(error));
-        console.error("[gerar_qr_token] message:", error.message);
-        console.error("[gerar_qr_token] code:", error.code);
-        console.error("[gerar_qr_token] details:", error.details);
-        console.error("[gerar_qr_token] hint:", error.hint);
         setErroMsg("Não foi possível gerar o QR Code. Tente novamente.");
         setEstado("erro");
         return;
       }
 
       if (!data?.token) {
-        console.error("[gerar_qr_token] RPC retornou sem token:", data);
-        console.error("[gerar_qr_token] data JSON:", JSON.stringify(data));
         setErroMsg("Não foi possível gerar o QR Code. Tente novamente.");
         setEstado("erro");
         return;

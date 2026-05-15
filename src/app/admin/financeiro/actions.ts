@@ -1,14 +1,13 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
-
-interface ActionResult {
-  ok: boolean;
-  erro?: string;
-}
+import type { ActionResult } from "@/lib/types";
 
 export async function marcarPago(mensalidadeId: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const hoje = new Date().toISOString().split("T")[0];
 
@@ -24,6 +23,8 @@ export async function marcarPago(mensalidadeId: string): Promise<ActionResult> {
 }
 
 export async function desmarcarPago(mensalidadeId: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const hoje = new Date().toISOString().split("T")[0];
 

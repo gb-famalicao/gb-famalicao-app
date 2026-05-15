@@ -44,7 +44,7 @@ async function gerarMensalidades(alunoId: string, valor: number) {
     const mes = String(data.getMonth() + 1).padStart(2, "0");
     const mesRef = `${ano}-${mes}-01`;
     const dataVenc = data.toISOString().split("T")[0];
-    await admin.from("mensalidades").upsert(
+    const { error } = await admin.from("mensalidades").upsert(
       {
         aluno_id: alunoId,
         mes_referencia: mesRef,
@@ -54,6 +54,7 @@ async function gerarMensalidades(alunoId: string, valor: number) {
       },
       { onConflict: "aluno_id,mes_referencia", ignoreDuplicates: true }
     );
+    if (error) throw new Error(`Erro ao gerar mensalidade ${mesRef}: ${error.message}`);
   }
 }
 

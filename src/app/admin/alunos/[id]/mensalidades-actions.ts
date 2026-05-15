@@ -1,13 +1,9 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/auth-guard";
 import { revalidatePath } from "next/cache";
-import type { Mensalidade } from "@/lib/types";
-
-interface ActionResult {
-  ok: boolean;
-  erro?: string;
-}
+import type { ActionResult, Mensalidade } from "@/lib/types";
 
 interface GerarResult extends ActionResult {
   mensalidade?: Mensalidade;
@@ -19,6 +15,8 @@ interface PresencaResult extends ActionResult {
 }
 
 export async function marcarPago(mensalidadeId: string, alunoId: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
   const hoje = new Date().toISOString().split("T")[0];
 
@@ -34,6 +32,8 @@ export async function marcarPago(mensalidadeId: string, alunoId: string): Promis
 }
 
 export async function desmarcarPago(mensalidadeId: string, alunoId: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { error } = await admin
@@ -48,6 +48,8 @@ export async function desmarcarPago(mensalidadeId: string, alunoId: string): Pro
 }
 
 export async function gerarProximoMes(alunoId: string): Promise<GerarResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { data: ultima, error: errBusca } = await admin
@@ -98,6 +100,8 @@ export async function gerarProximoMes(alunoId: string): Promise<GerarResult> {
 }
 
 export async function adicionarPresenca(alunoId: string, data: string): Promise<PresencaResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { data: existe } = await admin
@@ -126,6 +130,8 @@ export async function editarMensalidade(
   alunoId: string,
   dados: { valor: number; data_vencimento: string },
 ): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { error } = await admin
@@ -140,6 +146,8 @@ export async function editarMensalidade(
 }
 
 export async function excluirMensalidade(mensalidadeId: string, alunoId: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { error } = await admin
@@ -154,6 +162,8 @@ export async function excluirMensalidade(mensalidadeId: string, alunoId: string)
 }
 
 export async function excluirPresenca(presencaId: string, alunoId: string): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
   const admin = createAdminClient();
 
   const { error } = await admin
