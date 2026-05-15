@@ -571,6 +571,7 @@ export function AlunoEditView({
             <select id="categoria_edit" title="Categoria" value={form.categoria} onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value as CategoriaFaixa }))} className={selectClass}>
               <option value="adulto">Adulto</option>
               <option value="infantil">Infantil</option>
+              <option value="adulto_infantil">Adulto &amp; Infantil</option>
             </select>
           </div>
           <div className="space-y-1.5">

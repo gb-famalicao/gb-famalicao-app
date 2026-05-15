@@ -12,7 +12,7 @@ export interface Mensalidade {
   criado_em: string;
   atualizado_em: string;
 }
-export type CategoriaFaixa = "adulto" | "infantil";
+export type CategoriaFaixa = "adulto" | "infantil" | "adulto_infantil";
 export type CorFaixa =
   | "branca"
   | "cinza_branca"

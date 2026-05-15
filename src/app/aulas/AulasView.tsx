@@ -74,7 +74,11 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
   const aulasNoDia = useMemo(
     () =>
       aulas
-        .filter((a) => a.data === diaAtivo && a.turma?.categoria === selecionadoCategoria)
+        .filter((a) => {
+          if (a.data !== diaAtivo) return false;
+          if (selecionadoCategoria === "adulto_infantil") return true;
+          return a.turma?.categoria === selecionadoCategoria;
+        })
         .sort((a, b) => a.horario.localeCompare(b.horario)),
     [aulas, diaAtivo, selecionadoCategoria],
   );
@@ -83,7 +87,8 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
     const map: Record<string, number> = {};
     const minhas = reservasPorAluno[selecionadoId] ?? {};
     for (const a of aulas) {
-      if (minhas[a.id]?.status === "confirmada" && a.turma?.categoria === selecionadoCategoria) {
+      if (minhas[a.id]?.status === "confirmada" &&
+          (selecionadoCategoria === "adulto_infantil" || a.turma?.categoria === selecionadoCategoria)) {
         map[a.data] = (map[a.data] ?? 0) + 1;
       }
     }

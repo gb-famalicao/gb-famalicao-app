@@ -17,8 +17,9 @@ const RECORRENCIA_LABEL: Record<RecorrenciaTurma, string> = {
 };
 
 const CATEGORIA_CLASS: Record<CategoriaFaixa, string> = {
-  adulto:   "bg-blue-100 text-blue-700",
-  infantil: "bg-purple-100 text-purple-700",
+  adulto:          "bg-blue-100 text-blue-700",
+  infantil:        "bg-purple-100 text-purple-700",
+  adulto_infantil: "bg-green-100 text-green-700",
 };
 
 type TurmaComProfessor = Turma & {

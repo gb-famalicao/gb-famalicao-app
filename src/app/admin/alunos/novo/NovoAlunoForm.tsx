@@ -273,6 +273,7 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
             >
               <option value="adulto">Adulto</option>
               <option value="infantil">Infantil</option>
+              <option value="adulto_infantil">Adulto &amp; Infantil</option>
             </select>
           </div>
 
