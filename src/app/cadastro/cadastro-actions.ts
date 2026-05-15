@@ -24,7 +24,6 @@ function calcularIdade(dataNasc: string | null): number {
 
 function proximoDia5DoMes(offsetMeses: number): Date {
   const hoje = new Date();
-  // Começar sempre do próximo mês (mês atual + 1 + offset)
   const d = new Date(hoje.getFullYear(), hoje.getMonth() + 1 + offsetMeses, 5);
   const dow = d.getDay(); // 0=Dom, 6=Sab
   if (dow === 6) d.setDate(7); // Sáb → seg
@@ -62,6 +61,7 @@ export async function concluirCadastro(params: {
   nomeResponsavel: string;
   telefone: string | null;
   contactoEmergencia: string | null;
+  nif: string | null;
   dataNascimento: string | null;
   faixaAdulto: CorFaixa | null;
   grausAdulto: number;
@@ -69,6 +69,7 @@ export async function concluirCadastro(params: {
   dependentes: Array<{
     nome: string;
     dataNasc: string | null;
+    nif: string | null;
     faixa: CorFaixa | null;
     graus: number;
     categoria: CategoriaFaixa;
@@ -88,12 +89,12 @@ export async function concluirCadastro(params: {
       telefone: params.telefone,
       contacto_emergencia: params.contactoEmergencia,
       data_nascimento: params.dataNascimento,
+      nif: params.nif,
     };
 
     if (params.tipo === "responsavel") {
       profileUpdate.perfil = "responsavel";
     } else {
-      // aluno or aluno_responsavel — keep perfil "aluno", set belt info
       profileUpdate.faixa = params.faixaAdulto;
       profileUpdate.graus = params.grausAdulto;
       profileUpdate.categoria = params.categoriaAdulto;
@@ -122,6 +123,7 @@ export async function concluirCadastro(params: {
           id: depId,
           nome_completo: dep.nome,
           data_nascimento: dep.dataNasc,
+          nif: dep.nif,
           faixa: dep.faixa,
           graus: dep.graus,
           categoria: dep.categoria,
@@ -140,7 +142,6 @@ export async function concluirCadastro(params: {
 
         if (linkErr) return { ok: false, erro: `Erro ao vincular dependente: ${linkErr.message}` };
 
-        // Generate mensalidades for dependente
         const idadeDep = calcularIdade(dep.dataNasc);
         const valorDep = idadeDep < 16 ? 55 : 62;
         await gerarMensalidades(depId, valorDep);

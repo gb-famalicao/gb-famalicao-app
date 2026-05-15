@@ -83,6 +83,7 @@ export interface Profile {
   foto_url: string | null;
   contacto_emergencia: string | null;
   iban: string | null;
+  nif: string | null;
   aulas_manual: number;
   sem_login: boolean | null;
   created_at: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, KeyboardEvent, ClipboardEvent } from "react";
+import { useRef, useState, useEffect, KeyboardEvent, ClipboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -109,6 +109,23 @@ function dataParaISO(ddmmaaaa: string): string | null {
 
 function telefoneLimpo(telefone: string): string | null {
   return telefone.replace(/\D/g, "").length > 3 ? telefone.trim() : null;
+}
+
+function calcularIdade(dataDDMMAAAA: string): number | null {
+  const nums = dataDDMMAAAA.replace(/\D/g, "");
+  if (nums.length !== 8) return null;
+  const dia = parseInt(nums.slice(0, 2), 10);
+  const mes = parseInt(nums.slice(2, 4), 10) - 1;
+  const ano = parseInt(nums.slice(4, 8), 10);
+  const nasc = new Date(ano, mes, dia);
+  if (isNaN(nasc.getTime())) return null;
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  const aindaNaoFezAnos =
+    hoje.getMonth() < nasc.getMonth() ||
+    (hoje.getMonth() === nasc.getMonth() && hoje.getDate() < nasc.getDate());
+  if (aindaNaoFezAnos) idade--;
+  return idade;
 }
 
 // ─── Shared primitives ───────────────────────────────────────
@@ -996,10 +1013,12 @@ function CategoriaPicker({
   categoria,
   onCategoria,
   disabled,
+  soInfantil,
 }: {
   categoria: CategoriaFaixa;
   onCategoria: (v: CategoriaFaixa) => void;
   disabled?: boolean;
+  soInfantil?: boolean;
 }) {
   return (
     <div
@@ -1014,24 +1033,26 @@ function CategoriaPicker({
     >
       {(["adulto", "infantil"] as CategoriaFaixa[]).map((c) => {
         const selected = categoria === c;
+        const bloqueado = !!(soInfantil && c === "adulto");
         return (
           <button
             key={c}
             type="button"
-            disabled={disabled}
+            disabled={disabled || bloqueado}
             onClick={() => onCategoria(c)}
             style={{
               flex: 1,
               height: 36,
               borderRadius: 8,
               background: selected ? C.ink : "transparent",
-              color: selected ? "#fff" : C.ink2,
+              color: selected ? "#fff" : bloqueado ? C.ink3 : C.ink2,
               border: "none",
-              cursor: disabled ? "not-allowed" : "pointer",
+              cursor: disabled || bloqueado ? "not-allowed" : "pointer",
               fontSize: 14,
               fontWeight: selected ? 700 : 500,
               fontFamily: "inherit",
               transition: "all 0.15s",
+              opacity: bloqueado ? 0.45 : 1,
             }}
           >
             {c === "adulto" ? "Adulto" : "Infantil"}
@@ -1048,6 +1069,7 @@ type TipoUsuario = "aluno" | "responsavel" | "aluno_responsavel";
 type DependenteForm = {
   nome: string;
   dataNasc: string;
+  nif: string;
   categoria: CategoriaFaixa;
   faixa: CorFaixa | "";
   graus: number;
@@ -1064,7 +1086,9 @@ function StepDados({
   categoria,
   faixa,
   graus,
+  nif,
   dependentes,
+  termoAceito,
   erro,
   loading,
   onNome,
@@ -1074,7 +1098,9 @@ function StepDados({
   onCategoria,
   onFaixa,
   onGraus,
+  onNif,
   onDependentes,
+  onTermoAceito,
   onBack,
   onSubmit,
 }: {
@@ -1088,7 +1114,9 @@ function StepDados({
   categoria: CategoriaFaixa;
   faixa: CorFaixa | "";
   graus: number;
+  nif: string;
   dependentes: DependenteForm[];
+  termoAceito: boolean;
   erro: string;
   loading: boolean;
   onNome: (v: string) => void;
@@ -1098,25 +1126,30 @@ function StepDados({
   onCategoria: (v: CategoriaFaixa) => void;
   onFaixa: (v: CorFaixa | "") => void;
   onGraus: (v: number) => void;
+  onNif: (v: string) => void;
   onDependentes: (deps: DependenteForm[]) => void;
+  onTermoAceito: (v: boolean) => void;
   onBack: () => void;
   onSubmit: () => void;
 }) {
+  const isResponsavel = tipoUsuario === "responsavel";
+  const mostraAdulto = tipoUsuario !== "responsavel";
   const nomeValido = nome.trim().split(" ").filter(Boolean).length >= 2;
+  const idadeAdulto = mostraAdulto ? calcularIdade(dataNasc) : null;
+  const menorDe17 = idadeAdulto !== null && idadeAdulto <= 16;
   const temDependentes = tipoUsuario !== "aluno";
   const todosDepValidos = dependentes.every(
     (d) => d.nome.trim().split(" ").filter(Boolean).length >= 2
   );
-  const podeSubmeter = nomeValido && (!temDependentes || todosDepValidos);
-  const isResponsavel = tipoUsuario === "responsavel";
-  const mostraAdulto = tipoUsuario !== "responsavel";
+  const dadosAdultoValidos = nomeValido && (!mostraAdulto || !menorDe17);
+  const podeSubmeter = dadosAdultoValidos && (!temDependentes || todosDepValidos) && termoAceito;
 
   function updateDep(idx: number, patch: Partial<DependenteForm>) {
     const next = dependentes.map((d, i) => (i === idx ? { ...d, ...patch } : d));
     onDependentes(next);
   }
   function addDep() {
-    onDependentes([...dependentes, { nome: "", dataNasc: "", categoria: "infantil", faixa: "", graus: 0 }]);
+    onDependentes([...dependentes, { nome: "", dataNasc: "", nif: "", categoria: "infantil", faixa: "", graus: 0 }]);
   }
   function removeDep(idx: number) {
     onDependentes(dependentes.filter((_, i) => i !== idx));
@@ -1199,6 +1232,48 @@ function StepDados({
           </div>
         </div>
 
+        {tipoUsuario === "aluno" && menorDe17 && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 14px",
+              borderRadius: 12,
+              background: "rgba(204,0,0,0.06)",
+              border: `1px solid rgba(204,0,0,0.3)`,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, marginTop: 2 }}>
+              <path d="M8 1.5L14.5 13H1.5L8 1.5Z" stroke={C.red} strokeWidth="1.4" strokeLinejoin="round" />
+              <path d="M8 6v3.5M8 11.5h.01" stroke={C.red} strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, color: C.red, lineHeight: 1.5, marginBottom: 8, fontWeight: 600 }}>
+                Menores de 17 anos devem registar-se como Responsável de Aluno.
+              </div>
+              <button
+                type="button"
+                onClick={() => onTipoUsuario("responsavel")}
+                style={{
+                  background: C.red,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Mudar para Responsável →
+              </button>
+            </div>
+          </div>
+        )}
+
         <Field label={isResponsavel ? "Nome Completo do Responsável" : "Nome completo"} focused>
           <TextInput
             type="text"
@@ -1240,6 +1315,32 @@ function StepDados({
               />
             </Field>
 
+            {menorDe17 && (
+              <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(255,1,0,0.06)", border: `1px solid rgba(255,1,0,0.2)`, marginBottom: 12 }}>
+                <p style={{ fontSize: 13, color: C.red, margin: 0 }}>
+                  Para menores de 17 anos, o registo deve ser feito como <strong>Responsável de Aluno</strong>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { onTipoUsuario("responsavel"); }}
+                  style={{ marginTop: 6, background: C.red, color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  Mudar para Responsável →
+                </button>
+              </div>
+            )}
+
+            <Field label="NIF">
+              <TextInput
+                type="text"
+                placeholder="123 456 789"
+                value={nif}
+                onChange={onNif}
+                disabled={loading}
+                inputMode="numeric"
+              />
+            </Field>
+
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: C.ink2, letterSpacing: 0.3, textTransform: "uppercase", marginBottom: 6 }}>
                 Categoria
@@ -1262,6 +1363,21 @@ function StepDados({
             </div>
           </>
         )}
+
+        {/* NIF do responsavel (pure responsavel doesn't show adult fields above) */}
+        {isResponsavel && (
+          <Field label="NIF do responsável">
+            <TextInput
+              type="text"
+              placeholder="123 456 789"
+              value={nif}
+              onChange={onNif}
+              disabled={loading}
+              inputMode="numeric"
+            />
+          </Field>
+        )}
+
 
         <Field label="Contacto de emergência">
           <TextInput
@@ -1334,6 +1450,17 @@ function StepDados({
                     value={dep.dataNasc}
                     onChange={(v) => updateDep(idx, { dataNasc: mascaraData(v) })}
                     disabled={loading}
+                  />
+                </Field>
+
+                <Field label="NIF da criança">
+                  <TextInput
+                    type="text"
+                    placeholder="123 456 789"
+                    value={dep.nif}
+                    onChange={(v) => updateDep(idx, { nif: v })}
+                    disabled={loading}
+                    inputMode="numeric"
                   />
                 </Field>
 
@@ -1412,6 +1539,54 @@ function StepDados({
             Os teus dados ficam visíveis apenas para a equipa da Gracie Barra Famalicão.
           </span>
         </div>
+
+        {/* Terms checkbox */}
+        <label
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            marginTop: 4,
+            padding: "12px 14px",
+            borderRadius: 12,
+            background: termoAceito ? "rgba(255,1,0,0.05)" : "#fff",
+            border: `1.5px solid ${termoAceito ? C.red : C.line}`,
+            cursor: loading ? "not-allowed" : "pointer",
+            transition: "border-color 0.15s, background 0.15s",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={termoAceito}
+            disabled={loading}
+            onChange={(e) => onTermoAceito(e.target.checked)}
+            style={{
+              marginTop: 2,
+              width: 18,
+              height: 18,
+              accentColor: C.red,
+              flexShrink: 0,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          />
+          <span style={{ fontSize: 13, color: C.ink, lineHeight: 1.5 }}>
+            Declaro que estou de acordo com todos os termos do{" "}
+            <a
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                color: C.red,
+                textDecoration: "underline",
+                fontWeight: 600,
+              }}
+            >
+              contrato da Gracie Barra Famalicão
+            </a>
+            .
+          </span>
+        </label>
 
         {erro && (
           <div style={{ marginTop: 12 }}>
@@ -1598,14 +1773,40 @@ export function CadastroForm() {
   const [categoria, setCategoria] = useState<CategoriaFaixa>("adulto");
   const [faixa, setFaixa] = useState<CorFaixa | "">("");
   const [graus, setGraus] = useState(0);
+  const [nif, setNif] = useState("");
   const [dependentes, setDependentes] = useState<DependenteForm[]>([
-    { nome: "", dataNasc: "", categoria: "infantil", faixa: "", graus: 0 },
+    { nome: "", dataNasc: "", nif: "", categoria: "infantil", faixa: "", graus: 0 },
   ]);
+  const [termoAceito, setTermoAceito] = useState(false);
+
+  // On mount: if the user already has a session with onboarding=true (e.g. after OTP
+  // verification followed by a page refresh), jump straight to Step 3.
+  useEffect(() => {
+    async function checkOnboardingState() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      if (user.user_metadata?.onboarding === true) {
+        setEmail(user.email ?? "");
+        setPasso(3);
+      }
+    }
+    checkOnboardingState();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleCategoria(cat: CategoriaFaixa) {
     setCategoria(cat);
     setFaixa("");
   }
+
+  useEffect(() => {
+    const idade = calcularIdade(dataNasc);
+    if (idade !== null && idade <= 12) {
+      setCategoria("infantil");
+      setFaixa("");
+    }
+  }, [dataNasc]);
 
   function startCountdown() {
     setCountdown(30);
@@ -1642,6 +1843,7 @@ export function CadastroForm() {
         password: senha,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
+          data: { onboarding: true },
         },
       });
       if (error) {
@@ -1713,6 +1915,7 @@ export function CadastroForm() {
         nomeResponsavel: nome.trim(),
         telefone: tel,
         contactoEmergencia: contactoEmergencia || null,
+        nif: nif.trim() || null,
         dataNascimento: dataNascISO,
         faixaAdulto: faixa || null,
         grausAdulto: graus,
@@ -1720,6 +1923,7 @@ export function CadastroForm() {
         dependentes: dependentes.map((d) => ({
           nome: d.nome.trim(),
           dataNasc: dataParaISO(d.dataNasc),
+          nif: d.nif.trim() || null,
           faixa: d.faixa || null,
           graus: d.graus,
           categoria: d.categoria,
@@ -1730,6 +1934,10 @@ export function CadastroForm() {
         setErro(result.erro ?? "Erro ao concluir registo.");
         return;
       }
+
+      // Clear onboarding flag after successful registration
+      const supabase = createClient();
+      await supabase.auth.updateUser({ data: { onboarding: null } });
 
       setPasso(4);
     } finally {
@@ -1785,7 +1993,9 @@ export function CadastroForm() {
           categoria={categoria}
           faixa={faixa}
           graus={graus}
+          nif={nif}
           dependentes={dependentes}
+          termoAceito={termoAceito}
           erro={erro}
           loading={loading}
           onNome={setNome}
@@ -1795,7 +2005,9 @@ export function CadastroForm() {
           onCategoria={handleCategoria}
           onFaixa={setFaixa}
           onGraus={setGraus}
+          onNif={setNif}
           onDependentes={setDependentes}
+          onTermoAceito={setTermoAceito}
           onBack={() => { setErro(""); setPasso(2); }}
           onSubmit={handleConcluir}
         />

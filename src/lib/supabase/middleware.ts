@@ -39,11 +39,26 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Authenticated users on regular login pages → go to /perfil
-  // /tablet/login is intentionally excluded here — the page handles its own redirect
-  // Server actions (POST with Next-Action header) must not be redirected
+  // Server actions must never be redirected
   const isServerAction = request.headers.has("next-action");
-  if (user && ["/login", "/cadastro"].includes(pathname) && !isServerAction) {
+
+  // Flag set in user_metadata during signUp(); cleared after Step 3 is completed.
+  // Using session data avoids an extra DB round-trip and is immune to RLS/trigger timing issues.
+  const inOnboarding = user?.user_metadata?.onboarding === true;
+
+  // While onboarding is in progress: block every app page except /cadastro itself
+  if (user && inOnboarding && !isServerAction
+      && pathname !== "/cadastro"
+      && !pathname.startsWith("/tablet")
+      && pathname !== "/auth/callback") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/cadastro";
+    return NextResponse.redirect(url);
+  }
+
+  // Authenticated users who finished onboarding, landing on auth pages → send to app
+  // /tablet/login is excluded — that page handles its own redirect
+  if (user && !inOnboarding && ["/login", "/cadastro"].includes(pathname) && !isServerAction) {
     const url = request.nextUrl.clone();
     url.pathname = "/perfil";
     return NextResponse.redirect(url);
