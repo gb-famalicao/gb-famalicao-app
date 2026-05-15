@@ -27,6 +27,7 @@ import {
   gerarProximoMes as serverGerarProximoMes,
   adicionarPresenca as serverAdicionarPresenca,
   excluirPresenca as serverExcluirPresenca,
+  excluirMensalidade as serverExcluirMensalidade,
 } from "./mensalidades-actions";
 import { registrarGraduacao, excluirGraduacao } from "./graduacao-actions";
 import { uploadFotoAluno } from "./foto-actions";
@@ -339,6 +340,15 @@ export function AlunoEditView({
     const result = await serverGerarProximoMes(aluno.id);
     if (!result.ok) setAcaoErro(result.erro ?? "Erro ao gerar mensalidade.");
     else if (result.mensalidade) setMensalidades((prev) => [result.mensalidade!, ...prev]);
+    setAcao(null);
+  }
+
+  async function handleExcluirMensalidade(mensalidadeId: string) {
+    if (!confirm("Excluir esta mensalidade? Esta ação não pode ser revertida.")) return;
+    setAcao(`${mensalidadeId}-excluir`); setAcaoErro("");
+    const result = await serverExcluirMensalidade(mensalidadeId, aluno.id);
+    if (!result.ok) setAcaoErro(result.erro ?? "Erro ao excluir mensalidade.");
+    else setMensalidades((prev) => prev.filter((m) => m.id !== mensalidadeId));
     setAcao(null);
   }
 
@@ -906,6 +916,11 @@ export function AlunoEditView({
                             Desmarcar
                           </button>
                         )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button type="button" onClick={() => handleExcluirMensalidade(m.id)} disabled={!!acao} className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-50" title="Excluir mensalidade">
+                          {acao === `${m.id}-excluir` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                        </button>
                       </td>
                     </tr>
                   ))}

@@ -482,12 +482,12 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
           <ActionCard
             onClick={() => router.push("/presencas")}
             icon={<CalendarDays size={20} className="text-gray-500" />}
-            label="Histórico"
+            label="Ver Histórico de Presenças"
           />
           <ActionCard
             onClick={() => router.push("/aulas")}
             icon={<BookOpen size={20} className="text-gray-500" />}
-            label="Aulas"
+            label="Reservar Aula"
           />
           <ActionCard
             onClick={() => router.push("/avisos")}
