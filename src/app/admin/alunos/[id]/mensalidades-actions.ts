@@ -102,6 +102,10 @@ export async function gerarProximoMes(alunoId: string): Promise<GerarResult> {
 export async function adicionarPresenca(alunoId: string, data: string): Promise<PresencaResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  if (data > hoje) return { ok: false, erro: "Não é possível registrar presença para data futura." };
+
   const admin = createAdminClient();
 
   const { data: existe } = await admin

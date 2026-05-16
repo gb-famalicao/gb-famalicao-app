@@ -14,7 +14,7 @@ interface PresencaViewProps {
 
 type Estado = "carregando" | "idle" | "gerando" | "exibindo" | "expirado" | "confirmado" | "bloqueado" | "erro";
 
-const INTERVALO_MIN_MS = 60 * 60 * 1000;
+const INTERVALO_MIN_MS = 30 * 60 * 1000;
 
 export function PresencaView({ profile, dependentes }: PresencaViewProps) {
   const router = useRouter();
@@ -69,12 +69,14 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
   const verificarBloqueio = useCallback(async () => {
     try {
       const supabase = createClient();
-      const umaHoraAtras = new Date(Date.now() - INTERVALO_MIN_MS).toISOString();
+      const intervaloAtras = new Date(Date.now() - INTERVALO_MIN_MS).toISOString();
+      const agora = new Date().toISOString();
       const { data } = await supabase
         .from("presencas")
         .select("registrado_em")
         .eq("aluno_id", profile.id)
-        .gte("registrado_em", umaHoraAtras)
+        .gte("registrado_em", intervaloAtras)
+        .lte("registrado_em", agora)
         .order("registrado_em", { ascending: false })
         .limit(1)
         .maybeSingle();
