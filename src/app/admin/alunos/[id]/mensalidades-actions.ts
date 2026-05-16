@@ -47,6 +47,41 @@ export async function desmarcarPago(mensalidadeId: string, alunoId: string): Pro
   return { ok: true };
 }
 
+export async function criarPrimeiraMensalidade(
+  alunoId: string,
+  dados: { valor: number; mes_referencia: string; data_vencimento: string },
+): Promise<GerarResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  const admin = createAdminClient();
+
+  const { data: existe } = await admin
+    .from("mensalidades")
+    .select("id")
+    .eq("aluno_id", alunoId)
+    .eq("mes_referencia", dados.mes_referencia)
+    .maybeSingle();
+
+  if (existe) return { ok: false, erro: "Mensalidade para esse mês já existe." };
+
+  const { data: nova, error } = await admin
+    .from("mensalidades")
+    .insert({
+      aluno_id:        alunoId,
+      mes_referencia:  dados.mes_referencia,
+      data_vencimento: dados.data_vencimento,
+      valor:           dados.valor,
+      status:          "pendente",
+    })
+    .select()
+    .single();
+
+  if (error || !nova) return { ok: false, erro: error?.message ?? "Erro ao inserir." };
+
+  revalidatePath(`/admin/alunos/${alunoId}`);
+  return { ok: true, mensalidade: nova as Mensalidade };
+}
+
 export async function gerarProximoMes(alunoId: string): Promise<GerarResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;

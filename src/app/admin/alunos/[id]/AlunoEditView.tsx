@@ -25,6 +25,7 @@ import {
   marcarPago as serverMarcarPago,
   desmarcarPago as serverDesmarcarPago,
   gerarProximoMes as serverGerarProximoMes,
+  criarPrimeiraMensalidade as serverCriarPrimeiraMensalidade,
   adicionarPresenca as serverAdicionarPresenca,
   excluirPresenca as serverExcluirPresenca,
   excluirMensalidade as serverExcluirMensalidade,
@@ -145,6 +146,13 @@ export function AlunoEditView({
   const [acao, setAcao] = useState<string | null>(null);
   const [acaoErro, setAcaoErro] = useState("");
   const [editando, setEditando] = useState<{ id: string; valor: string; dataVencimento: string } | null>(null);
+  const hoje = new Date();
+  const [mostraCriarPrimeira, setMostraCriarPrimeira] = useState(false);
+  const [primeiraMensalidadeForm, setPrimeiraMensalidadeForm] = useState({
+    valor: "",
+    mes_referencia: `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`,
+    data_vencimento: `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-05`,
+  });
 
   // ── Presenças ──────────────────────────────────────────────────────────────
   const [presencas, setPresencas] = useState(presencasProp);
@@ -338,10 +346,28 @@ export function AlunoEditView({
   }
 
   async function handleGerarProximoMes() {
+    if (mensalidades.length === 0) { setMostraCriarPrimeira(true); return; }
     setAcao("gerar"); setAcaoErro("");
     const result = await serverGerarProximoMes(aluno.id);
     if (!result.ok) setAcaoErro(result.erro ?? "Erro ao gerar mensalidade.");
     else if (result.mensalidade) setMensalidades((prev) => [result.mensalidade!, ...prev]);
+    setAcao(null);
+  }
+
+  async function handleCriarPrimeiraMensalidade() {
+    const valor = parseFloat(primeiraMensalidadeForm.valor.replace(",", "."));
+    if (!valor || valor <= 0) { setAcaoErro("Valor inválido."); return; }
+    setAcao("criar-primeira"); setAcaoErro("");
+    const result = await serverCriarPrimeiraMensalidade(aluno.id, {
+      valor,
+      mes_referencia:  primeiraMensalidadeForm.mes_referencia,
+      data_vencimento: primeiraMensalidadeForm.data_vencimento,
+    });
+    if (!result.ok) setAcaoErro(result.erro ?? "Erro ao criar mensalidade.");
+    else if (result.mensalidade) {
+      setMensalidades([result.mensalidade]);
+      setMostraCriarPrimeira(false);
+    }
     setAcao(null);
   }
 
@@ -896,6 +922,51 @@ export function AlunoEditView({
         </div>
 
         {acaoErro && <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700">{acaoErro}</div>}
+
+        {mostraCriarPrimeira && (
+          <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
+            <p className="text-sm font-medium text-gray-700">Criar primeira mensalidade</p>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Mês de referência</label>
+                <input
+                  type="month"
+                  value={primeiraMensalidadeForm.mes_referencia.slice(0, 7)}
+                  onChange={(e) => setPrimeiraMensalidadeForm((p) => ({ ...p, mes_referencia: `${e.target.value}-01` }))}
+                  className="h-8 w-full rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Data de vencimento</label>
+                <input
+                  type="date"
+                  value={primeiraMensalidadeForm.data_vencimento}
+                  onChange={(e) => setPrimeiraMensalidadeForm((p) => ({ ...p, data_vencimento: e.target.value }))}
+                  className="h-8 w-full rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Valor (€)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={primeiraMensalidadeForm.valor}
+                  onChange={(e) => setPrimeiraMensalidadeForm((p) => ({ ...p, valor: e.target.value }))}
+                  className="h-8 w-full rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setMostraCriarPrimeira(false); setAcaoErro(""); }}>Cancelar</Button>
+              <Button size="sm" className="h-7 text-xs bg-gb-blue hover:bg-gb-blue-dark text-white" onClick={handleCriarPrimeiraMensalidade} disabled={acao === "criar-primeira"}>
+                {acao === "criar-primeira" ? <Loader2 size={11} className="animate-spin mr-1" /> : null}
+                Criar
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           {mensalidades.length === 0 ? (
