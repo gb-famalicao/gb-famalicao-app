@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Users, Megaphone, Images, LayoutDashboard, LogOut, CalendarDays, DollarSign } from "lucide-react";
+import { Users, Megaphone, Images, LayoutDashboard, LogOut, CalendarDays, DollarSign, FileSpreadsheet } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -10,8 +10,9 @@ const NAV_ITEMS = [
   { href: "/admin",        label: "Dashboard", icon: LayoutDashboard, disabled: false, exact: true  },
   { href: "/admin/alunos", label: "Cadastros", icon: Users,           disabled: false, exact: false },
   { href: "/admin/turmas", label: "Turmas",    icon: CalendarDays,    disabled: false, exact: false },
-  { href: "/admin/financeiro", label: "Financeiro", icon: DollarSign,  disabled: false, exact: false },
-  { href: "/admin/avisos", label: "Avisos",    icon: Megaphone,       disabled: false, exact: false },
+  { href: "/admin/financeiro",  label: "Financeiro", icon: DollarSign,      disabled: false, exact: false },
+  { href: "/admin/relatorios", label: "Relatórios", icon: FileSpreadsheet, disabled: false, exact: false },
+  { href: "/admin/avisos",     label: "Avisos",     icon: Megaphone,       disabled: false, exact: false },
   { href: "/admin/albuns", label: "Galeria",   icon: Images,          disabled: false, exact: false },
 ];
 
@@ -43,7 +44,7 @@ export function AdminSidebar({ perfil }: { perfil: "admin" | "professor" }) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-1">
-          {NAV_ITEMS.filter((i) => perfil === "admin" || i.href !== "/admin/financeiro").map(({ href, label, icon: Icon, disabled, exact }) => {
+          {NAV_ITEMS.filter((i) => perfil === "admin" || (i.href !== "/admin/financeiro" && i.href !== "/admin/relatorios")).map(({ href, label, icon: Icon, disabled, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
@@ -105,7 +106,7 @@ export function AdminSidebar({ perfil }: { perfil: "admin" | "professor" }) {
         </div>
         {/* Scrollable nav row */}
         <nav className="flex items-center gap-1 overflow-x-auto px-3 pb-2 scrollbar-none">
-          {NAV_ITEMS.filter((i) => !i.disabled && (perfil === "admin" || i.href !== "/admin/financeiro")).map(({ href, label, icon: Icon, exact }) => {
+          {NAV_ITEMS.filter((i) => !i.disabled && (perfil === "admin" || (i.href !== "/admin/financeiro" && i.href !== "/admin/relatorios"))).map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
