@@ -4,14 +4,16 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CalendarDays } from "lucide-react";
 import { PresencasCalendario } from "@/components/PresencasCalendario";
 
-export type { PresencaItem } from "@/components/PresencasCalendario";
-import type { PresencaItem } from "@/components/PresencasCalendario";
+export type { PresencaItem, PessoaFiltro } from "@/components/PresencasCalendario";
+import type { PresencaItem, PessoaFiltro } from "@/components/PresencasCalendario";
 
 interface PresencasViewProps {
   presencas: PresencaItem[];
+  pessoas: PessoaFiltro[];
+  responsavelId: string;
 }
 
-export function PresencasView({ presencas }: PresencasViewProps) {
+export function PresencasView({ presencas, pessoas, responsavelId }: PresencasViewProps) {
   const router = useRouter();
 
   return (
@@ -36,12 +38,16 @@ export function PresencasView({ presencas }: PresencasViewProps) {
           <h1 className="text-white font-bold text-xl">Histórico de Presenças</h1>
         </div>
         <p className="text-white/50 text-sm mt-0.5">
-          {presencas.length} presença{presencas.length !== 1 ? "s" : ""} no total
+          {presencas.length} presença{presencas.length !== 1 ? "s" : ""} registada{presencas.length !== 1 ? "s" : ""} na conta
         </p>
       </div>
 
       <div className="flex-1 px-4 py-5 pb-8">
-        <PresencasCalendario presencas={presencas} />
+        <PresencasCalendario
+          presencas={presencas}
+          pessoas={pessoas}
+          responsavelId={responsavelId}
+        />
       </div>
     </div>
   );

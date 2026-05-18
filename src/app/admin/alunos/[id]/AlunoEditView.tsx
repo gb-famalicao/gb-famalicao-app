@@ -404,7 +404,7 @@ export function AlunoEditView({
     const result = await serverAdicionarPresenca(aluno.id, dataPresenca);
     setAddPresencaLoading(false);
     if (!result.ok) { setAddPresencaErro(result.erro ?? "Erro ao adicionar presença."); return; }
-    setPresencas((prev) => [{ id: result.presencaId!, registrado_em: result.registrado_em! }, ...prev]);
+    setPresencas((prev) => [{ id: result.presencaId!, registrado_em: result.registrado_em!, aluno_id: aluno.id }, ...prev]);
     setDataPresenca(""); setMostraAddPresenca(false);
   }
 

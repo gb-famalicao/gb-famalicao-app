@@ -6,6 +6,13 @@ import { ChevronLeft, ChevronRight, CalendarDays, Dumbbell, X, Loader2 } from "l
 export interface PresencaItem {
   id?: string;
   registrado_em: string;
+  aluno_id?: string;
+}
+
+export interface PessoaFiltro {
+  id: string;
+  nome: string;
+  cor: string;
 }
 
 const MESES = [
@@ -17,23 +24,40 @@ const DIAS_SEMANA = ["D", "S", "T", "Q", "Q", "S", "S"];
 
 interface Props {
   presencas: PresencaItem[];
+  pessoas?: PessoaFiltro[];
+  responsavelId?: string;
   onExcluirPresenca?: (id: string) => Promise<void>;
 }
 
-export function PresencasCalendario({ presencas, onExcluirPresenca }: Props) {
+export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "", onExcluirPresenca }: Props) {
   const hoje = new Date();
   const [mes, setMes] = useState(hoje.getMonth());
   const [ano, setAno] = useState(hoje.getFullYear());
   const [excluindo, setExcluindo] = useState<string | null>(null);
+  const [pessoaSelecionada, setPessoaSelecionada] = useState(responsavelId);
 
   const esMesAtual = mes === hoje.getMonth() && ano === hoje.getFullYear();
 
+  const pessoaAtual = useMemo(
+    () => pessoas.find((p) => p.id === pessoaSelecionada) ?? pessoas[0],
+    [pessoas, pessoaSelecionada]
+  );
+  const corAtual = pessoaAtual?.cor ?? "#CC0000";
+  const primeiroNome = pessoaAtual?.nome.split(" ")[0] ?? "";
+
+  const presencasFiltradas = useMemo(
+    () => pessoaSelecionada
+      ? presencas.filter((p) => !p.aluno_id || p.aluno_id === pessoaSelecionada)
+      : presencas,
+    [presencas, pessoaSelecionada]
+  );
+
   const presencasNoMes = useMemo(
-    () => presencas.filter((p) => {
+    () => presencasFiltradas.filter((p) => {
       const d = new Date(p.registrado_em);
       return d.getMonth() === mes && d.getFullYear() === ano;
     }),
-    [presencas, mes, ano]
+    [presencasFiltradas, mes, ano]
   );
 
   const diasTreinados = useMemo(
@@ -109,12 +133,38 @@ export function PresencasCalendario({ presencas, onExcluirPresenca }: Props) {
           </button>
         </div>
         <div className="mt-3 text-center">
-          <p className="text-2xl font-black text-gb-blue tabular-nums">{presencasNoMes.length}</p>
+          <p className="text-2xl font-black tabular-nums" style={{ color: corAtual }}>
+            {presencasNoMes.length}
+          </p>
           <p className="text-xs text-gray-400 mt-0.5">
             presença{presencasNoMes.length !== 1 ? "s" : ""} em {MESES[mes].toLowerCase()}
           </p>
         </div>
       </div>
+
+      {/* Filtro por pessoa */}
+      {pessoas.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
+          {pessoas.map((p) => {
+            const selecionado = pessoaSelecionada === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPessoaSelecionada(p.id)}
+                className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all"
+                style={
+                  selecionado
+                    ? { backgroundColor: p.cor, color: "#ffffff" }
+                    : { backgroundColor: "#ffffff", color: "#6B7280", border: "1px solid #E5E7EB" }
+                }
+              >
+                {p.nome.split(" ")[0]}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Calendário */}
       <div className="bg-white rounded-2xl border border-gray-100 p-4">
@@ -131,10 +181,14 @@ export function PresencasCalendario({ presencas, onExcluirPresenca }: Props) {
             return (
               <div
                 key={dia}
-                className={`aspect-square rounded-md flex items-center justify-center text-xs font-medium select-none
-                  ${treinou ? "bg-gb-blue text-white font-bold shadow-sm"
-                    : eHoje ? "bg-gb-gray border-2 border-gb-blue text-gb-blue font-bold"
-                    : "bg-gray-50 text-gray-400"}`}
+                className="aspect-square rounded-md flex items-center justify-center text-xs font-medium select-none"
+                style={
+                  treinou
+                    ? { backgroundColor: corAtual, color: "#ffffff", fontWeight: 700 }
+                    : eHoje
+                    ? { backgroundColor: "#F5F5F5", border: `2px solid ${corAtual}`, color: corAtual, fontWeight: 700 }
+                    : { backgroundColor: "#F9FAFB", color: "#9CA3AF" }
+                }
               >
                 {dia}
               </div>
@@ -143,7 +197,7 @@ export function PresencasCalendario({ presencas, onExcluirPresenca }: Props) {
         </div>
         <div className="mt-3 flex items-center justify-center gap-4">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-gb-blue" />
+            <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: corAtual }} />
             <span className="text-xs text-gray-400">Treinou</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -162,15 +216,26 @@ export function PresencasCalendario({ presencas, onExcluirPresenca }: Props) {
           <div className="divide-y divide-gray-50">
             {presencasNoMes.map((p, i) => (
               <div key={p.id ?? i} className="px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-gb-blue/10 flex items-center justify-center shrink-0">
-                    <Dumbbell size={12} className="text-gb-blue" />
+                <div className="flex items-center gap-3 min-w-0">
+                  <div
+                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                    style={{ backgroundColor: `${corAtual}1A` }}
+                  >
+                    <Dumbbell size={12} style={{ color: corAtual }} />
                   </div>
-                  <span className="text-sm font-medium text-gray-900 capitalize">
-                    {formatarDataLista(p.registrado_em)}
-                  </span>
+                  <div className="min-w-0">
+                    <span
+                      className="text-xs font-bold"
+                      style={{ color: corAtual }}
+                    >
+                      {primeiroNome}
+                    </span>
+                    <p className="text-sm font-medium text-gray-900 capitalize truncate">
+                      {formatarDataLista(p.registrado_em)}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 ml-2">
+                <div className="flex items-center gap-3 ml-2 shrink-0">
                   <span className="text-sm text-gray-400 tabular-nums">{formatarHora(p.registrado_em)}</span>
                   {onExcluirPresenca && p.id && (
                     <button
