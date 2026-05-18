@@ -146,12 +146,12 @@ export function AlunoEditView({
   const [acao, setAcao] = useState<string | null>(null);
   const [acaoErro, setAcaoErro] = useState("");
   const [editando, setEditando] = useState<{ id: string; valor: string; dataVencimento: string } | null>(null);
-  const hoje = new Date();
+  const hojeObj = new Date();
   const [mostraCriarPrimeira, setMostraCriarPrimeira] = useState(false);
   const [primeiraMensalidadeForm, setPrimeiraMensalidadeForm] = useState({
     valor: "",
-    mes_referencia: `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`,
-    data_vencimento: `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-05`,
+    mes_referencia: `${hojeObj.getFullYear()}-${String(hojeObj.getMonth() + 1).padStart(2, "0")}-01`,
+    data_vencimento: `${hojeObj.getFullYear()}-${String(hojeObj.getMonth() + 1).padStart(2, "0")}-05`,
   });
 
   // ── Presenças ──────────────────────────────────────────────────────────────
