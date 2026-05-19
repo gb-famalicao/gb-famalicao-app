@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2, Users, Check, X, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StatusAula, StatusReserva, CategoriaFaixa } from "@/lib/types";
 import { reservar, cancelarMinhaReserva } from "./aulas-actions";
+import { getTurmaTag } from "@/lib/turma-tags";
 
 export interface AulaParaAluno {
   id: string;
@@ -284,24 +285,46 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
                 )}
               >
                 <div className="flex items-start gap-4">
-                  <div
-                    className={cn(
-                      "w-16 h-16 rounded-xl flex flex-col items-center justify-center shrink-0",
-                      reservada ? "bg-gb-blue" : lotado ? "bg-gray-100" : "bg-gb-blue/10",
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        "text-lg font-black tabular-nums leading-tight",
-                        reservada ? "text-white" : lotado ? "text-gray-400" : "text-gb-blue",
-                      )}
-                    >
-                      {formatarHorario(aula.horario)}
-                    </span>
-                  </div>
+                  {(() => {
+                    const tag = aula.turma ? getTurmaTag(aula.turma.nome) : null;
+                    return tag ? (
+                      <div
+                        className="w-16 h-16 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: tag.bg }}
+                      >
+                        <span className="text-white font-black text-sm leading-none text-center px-1">
+                          {tag.code}
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        className={cn(
+                          "w-16 h-16 rounded-xl flex flex-col items-center justify-center shrink-0",
+                          reservada ? "bg-gb-blue" : lotado ? "bg-gray-100" : "bg-gb-blue/10",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "text-lg font-black tabular-nums leading-tight",
+                            reservada ? "text-white" : lotado ? "text-gray-400" : "text-gb-blue",
+                          )}
+                        >
+                          {formatarHorario(aula.horario)}
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-900 text-sm leading-tight">{aula.turma?.nome ?? "—"}</p>
+                    {(() => {
+                      const tag = aula.turma ? getTurmaTag(aula.turma.nome) : null;
+                      return (
+                        <p className="font-bold text-gray-900 text-sm leading-tight">
+                          {aula.turma?.nome ?? "—"}
+                          {tag && <span className="font-normal text-gray-500"> · {formatarHorario(aula.horario)}</span>}
+                        </p>
+                      );
+                    })()}
 
                     <div className="flex items-center gap-2 mt-1.5">
                       <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
