@@ -6,6 +6,10 @@
 
 # testing
 /coverage
+/e2e/.auth/
+/playwright-report/
+/test-results/
+.sentryclirc
 
 # next.js
 /.next/
@@ -41,5 +45,10 @@ next-env.d.ts
 /public/sw.js.map
 /public/workbox-*.js
 /public/workbox-*.js.map
+/public/fallback-*.js
+/public/fallback-*.js.map
 
 .vercel
+
+# Sentry Config File
+.env.sentry-build-plugin

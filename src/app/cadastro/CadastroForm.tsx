@@ -137,6 +137,7 @@ function PrimaryBtn({
   onClick,
   type = "button",
   dark = false,
+  testId,
 }: {
   children: React.ReactNode;
   disabled?: boolean;
@@ -144,11 +145,13 @@ function PrimaryBtn({
   onClick?: () => void;
   type?: "button" | "submit";
   dark?: boolean;
+  testId?: string;
 }) {
   const inactive = disabled || loading;
   return (
     <button
       type={type}
+      data-testid={testId}
       disabled={!!inactive}
       onClick={onClick}
       style={{
@@ -683,6 +686,7 @@ function StepEmail({
           loading={loading}
           disabled={!email || senha.length < 6 || senha !== confirmarSenha}
           onClick={onSubmit}
+          testId="btn-enviar-codigo"
         >
           Enviar código
         </PrimaryBtn>
@@ -1596,7 +1600,7 @@ function StepDados({
 
         <div style={{ flex: 1, minHeight: 12 }} />
 
-        <PrimaryBtn loading={loading} disabled={!podeSubmeter} onClick={onSubmit}>
+        <PrimaryBtn loading={loading} disabled={!podeSubmeter} onClick={onSubmit} testId="btn-concluir-cadastro">
           Concluir inscrição
         </PrimaryBtn>
       </div>

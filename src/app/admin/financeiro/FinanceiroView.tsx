@@ -161,7 +161,7 @@ export function FinanceiroView({ mensalidades }: Props) {
                 const { label, cls } = statusBadge(m.status);
                 const isLoading = loadingId === m.id;
                 return (
-                  <tr key={m.id} className="hover:bg-gray-50 transition-colors">
+                  <tr key={m.id} data-mensalidade-id={m.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-semibold text-gray-900">
                       {m.profiles?.nome_completo ?? "—"}
                     </td>
@@ -180,6 +180,7 @@ export function FinanceiroView({ mensalidades }: Props) {
                       {m.status !== "pago" ? (
                         <button
                           type="button"
+                          data-testid="btn-marcar-pago"
                           disabled={isLoading || pending}
                           onClick={() => handleMarcar(m.id)}
                           className="text-xs px-3 py-1.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-40"
@@ -189,6 +190,7 @@ export function FinanceiroView({ mensalidades }: Props) {
                       ) : (
                         <button
                           type="button"
+                          data-testid="btn-desmarcar-pago"
                           disabled={isLoading || pending}
                           onClick={() => handleDesmarcar(m.id)}
                           className="text-xs px-3 py-1.5 rounded-lg bg-gray-50 text-gray-500 hover:bg-gray-100 border border-gray-200 transition-colors disabled:opacity-40"

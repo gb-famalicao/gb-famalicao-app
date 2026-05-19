@@ -240,6 +240,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
               </p>
             </div>
             <Button
+              data-testid="btn-gerar-qr"
               onClick={handleGerarQR}
               className="w-full bg-gb-blue hover:bg-gb-blue-dark text-white h-14 text-base font-bold rounded-2xl shadow-lg"
             >
@@ -260,7 +261,7 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
           <div className="w-full max-w-sm flex flex-col items-center gap-5">
             <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qrDataUrl} alt="QR Code de presença" width={280} height={280} />
+              <img data-testid="qr-image" src={qrDataUrl} alt="QR Code de presença" width={280} height={280} />
             </div>
 
             <div className="flex flex-col items-center gap-2 w-full max-w-xs">

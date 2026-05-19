@@ -9,5 +9,18 @@ export async function register() {
     if (g.localStorage && typeof g.localStorage.getItem !== "function") {
       delete g.localStorage;
     }
+    await import("../sentry.server.config");
+  }
+  if (process.env.NEXT_RUNTIME === "edge") {
+    await import("../sentry.edge.config");
   }
 }
+
+export const onRequestError = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ...args: any[]
+) => {
+  const { captureRequestError } = await import("@sentry/nextjs");
+  // @ts-expect-error — spread matches Sentry's onRequestError signature
+  captureRequestError(...args);
+};
