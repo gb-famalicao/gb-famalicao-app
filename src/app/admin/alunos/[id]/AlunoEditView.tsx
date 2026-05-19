@@ -30,6 +30,7 @@ import {
   excluirPresenca as serverExcluirPresenca,
   excluirMensalidade as serverExcluirMensalidade,
   editarMensalidade as serverEditarMensalidade,
+  editarMensalidadesEmLote as serverEditarMensalidadesEmLote,
 } from "./mensalidades-actions";
 import { registrarGraduacao, excluirGraduacao } from "./graduacao-actions";
 import { uploadFotoAluno } from "./foto-actions";
@@ -145,7 +146,11 @@ export function AlunoEditView({
   const [mensalidades, setMensalidades] = useState(mensalidadesProp);
   const [acao, setAcao] = useState<string | null>(null);
   const [acaoErro, setAcaoErro] = useState("");
-  const [editando, setEditando] = useState<{ id: string; valor: string; dataVencimento: string } | null>(null);
+  const [editando, setEditando] = useState<{ id: string; valor: string; dataVencimento: string; mesReferencia: string } | null>(null);
+  const [editandoLote, setEditandoLote] = useState(false);
+  const [loteData, setLoteData] = useState<Array<{ id: string; valor: string; dataVencimento: string; mesReferencia: string }>>([]);
+  const [acaoLote, setAcaoLote] = useState(false);
+  const [loteErro, setLoteErro] = useState("");
   const hojeObj = new Date();
   const [mostraCriarPrimeira, setMostraCriarPrimeira] = useState(false);
   const [primeiraMensalidadeForm, setPrimeiraMensalidadeForm] = useState({
@@ -385,17 +390,43 @@ export function AlunoEditView({
     const valor = parseFloat(editando.valor.replace(",", "."));
     if (isNaN(valor) || valor <= 0) { setAcaoErro("Valor inválido."); return; }
     if (!editando.dataVencimento) { setAcaoErro("Data de vencimento obrigatória."); return; }
+    if (!editando.mesReferencia) { setAcaoErro("Mês obrigatório."); return; }
     setAcao(`${editando.id}-editar`); setAcaoErro("");
-    const result = await serverEditarMensalidade(editando.id, aluno.id, { valor, data_vencimento: editando.dataVencimento });
+    const mesRef = `${editando.mesReferencia}-01`;
+    const result = await serverEditarMensalidade(editando.id, aluno.id, { valor, data_vencimento: editando.dataVencimento, mes_referencia: mesRef });
     if (!result.ok) {
       setAcaoErro(result.erro ?? "Erro ao guardar alterações.");
     } else {
       setMensalidades((prev) =>
-        prev.map((m) => m.id === editando.id ? { ...m, valor, data_vencimento: editando.dataVencimento } : m)
+        prev.map((m) => m.id === editando.id ? { ...m, valor, data_vencimento: editando.dataVencimento, mes_referencia: mesRef } : m)
       );
       setEditando(null);
     }
     setAcao(null);
+  }
+
+  async function handleSalvarLote() {
+    setLoteErro("");
+    const updates: Array<{ id: string; valor: number; data_vencimento: string; mes_referencia: string }> = [];
+    for (const row of loteData) {
+      const valor = parseFloat(row.valor.replace(",", "."));
+      if (isNaN(valor) || valor <= 0) { setLoteErro(`Valor inválido em ${row.mesReferencia}.`); return; }
+      if (!row.dataVencimento) { setLoteErro(`Data de vencimento obrigatória em ${row.mesReferencia}.`); return; }
+      if (!row.mesReferencia) { setLoteErro("Mês obrigatório em todas as linhas."); return; }
+      updates.push({ id: row.id, valor, data_vencimento: row.dataVencimento, mes_referencia: `${row.mesReferencia}-01` });
+    }
+    setAcaoLote(true);
+    const result = await serverEditarMensalidadesEmLote(aluno.id, updates);
+    setAcaoLote(false);
+    if (!result.ok) { setLoteErro(result.erro ?? "Erro ao guardar alterações."); return; }
+    setMensalidades((prev) =>
+      prev.map((m) => {
+        const u = updates.find((x) => x.id === m.id);
+        return u ? { ...m, valor: u.valor, data_vencimento: u.data_vencimento, mes_referencia: u.mes_referencia } : m;
+      })
+    );
+    setEditandoLote(false);
+    setLoteErro("");
   }
 
   async function handleAdicionarPresenca() {
@@ -915,13 +946,22 @@ export function AlunoEditView({
             Mensalidades
             <span className="text-gray-400 font-normal text-sm">({mensalidades.length})</span>
           </h2>
-          <Button size="sm" onClick={handleGerarProximoMes} disabled={acao === "gerar"} className="bg-gb-blue hover:bg-gb-blue-dark text-white text-xs h-8 px-3">
-            {acao === "gerar" ? <Loader2 size={12} className="animate-spin mr-1.5" /> : <Plus size={12} className="mr-1.5" />}
-            Gerar próximo mês
-          </Button>
+          <div className="flex items-center gap-2">
+            {mensalidades.length > 0 && !editandoLote && (
+              <Button size="sm" variant="outline" onClick={() => { setLoteData(mensalidades.map((m) => ({ id: m.id, valor: String(m.valor ?? ""), dataVencimento: m.data_vencimento, mesReferencia: m.mes_referencia.slice(0, 7) }))); setEditandoLote(true); setLoteErro(""); }} disabled={!!acao} className="text-xs h-8 px-3">
+                <Pencil size={12} className="mr-1.5" />
+                Editar em lote
+              </Button>
+            )}
+            <Button size="sm" onClick={handleGerarProximoMes} disabled={acao === "gerar" || editandoLote} className="bg-gb-blue hover:bg-gb-blue-dark text-white text-xs h-8 px-3">
+              {acao === "gerar" ? <Loader2 size={12} className="animate-spin mr-1.5" /> : <Plus size={12} className="mr-1.5" />}
+              Gerar próximo mês
+            </Button>
+          </div>
         </div>
 
         {acaoErro && <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700">{acaoErro}</div>}
+        {loteErro && <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-2 text-sm text-red-700">{loteErro}</div>}
 
         {mostraCriarPrimeira && (
           <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
@@ -985,16 +1025,55 @@ export function AlunoEditView({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {mensalidades.map((m) => {
+                  {editandoLote ? loteData.map((row, idx) => (
+                    <tr key={row.id} className="bg-blue-50/30">
+                      <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+                        <input
+                          type="month"
+                          value={row.mesReferencia}
+                          onChange={(e) => setLoteData((prev) => prev.map((r, i) => i === idx ? { ...r, mesReferencia: e.target.value } : r))}
+                          className="h-7 w-36 rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        <input
+                          type="date"
+                          value={row.dataVencimento}
+                          onChange={(e) => setLoteData((prev) => prev.map((r, i) => i === idx ? { ...r, dataVencimento: e.target.value } : r))}
+                          className="h-7 w-36 rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={row.valor}
+                          onChange={(e) => setLoteData((prev) => prev.map((r, i) => i === idx ? { ...r, valor: e.target.value } : r))}
+                          className="h-7 w-24 rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+                        />
+                      </td>
+                      <td className="px-4 py-3" colSpan={3} />
+                    </tr>
+                  )) : mensalidades.map((m) => {
                     const emEdicao = editando?.id === m.id;
                     return (
                       <tr key={m.id} className={emEdicao ? "bg-blue-50/40" : undefined}>
-                        <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">
+                          {emEdicao ? (
+                            <input
+                              type="month"
+                              value={editando!.mesReferencia}
+                              onChange={(e) => setEditando((prev) => prev && { ...prev, mesReferencia: e.target.value })}
+                              className="h-7 w-36 rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
+                            />
+                          ) : formatarMes(Number(m.mes_referencia.slice(0, 4)), Number(m.mes_referencia.slice(5, 7)))}
+                        </td>
                         <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                           {emEdicao ? (
                             <input
                               type="date"
-                              value={editando.dataVencimento}
+                              value={editando!.dataVencimento}
                               onChange={(e) => setEditando((prev) => prev && { ...prev, dataVencimento: e.target.value })}
                               className="h-7 w-36 rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
                             />
@@ -1006,7 +1085,7 @@ export function AlunoEditView({
                               type="number"
                               min="0"
                               step="0.01"
-                              value={editando.valor}
+                              value={editando!.valor}
                               onChange={(e) => setEditando((prev) => prev && { ...prev, valor: e.target.value })}
                               className="h-7 w-24 rounded border border-gray-300 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-gb-blue/30"
                             />
@@ -1044,7 +1123,7 @@ export function AlunoEditView({
                         <td className="px-4 py-3">
                           {!emEdicao && (
                             <div className="flex items-center gap-2">
-                              <button type="button" onClick={() => { setEditando({ id: m.id, valor: String(m.valor ?? ""), dataVencimento: m.data_vencimento }); setAcaoErro(""); }} disabled={!!acao} className="text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-50" title="Editar mensalidade">
+                              <button type="button" onClick={() => { setEditando({ id: m.id, valor: String(m.valor ?? ""), dataVencimento: m.data_vencimento, mesReferencia: m.mes_referencia.slice(0, 7) }); setAcaoErro(""); }} disabled={!!acao} className="text-gray-400 hover:text-gray-700 transition-colors disabled:opacity-50" title="Editar mensalidade">
                                 <Pencil size={12} />
                               </button>
                               <button type="button" onClick={() => handleExcluirMensalidade(m.id)} disabled={!!acao} className="text-red-400 hover:text-red-600 transition-colors disabled:opacity-50" title="Excluir mensalidade">
@@ -1058,6 +1137,15 @@ export function AlunoEditView({
                   })}
                 </tbody>
               </table>
+              {editandoLote && (
+                <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-gray-100 bg-gray-50">
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEditandoLote(false); setLoteErro(""); }} disabled={acaoLote}>Cancelar</Button>
+                  <Button size="sm" className="h-7 text-xs bg-gb-blue hover:bg-gb-blue-dark text-white" onClick={handleSalvarLote} disabled={acaoLote}>
+                    {acaoLote ? <Loader2 size={11} className="animate-spin mr-1" /> : <Check size={11} className="mr-1" />}
+                    Guardar tudo
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>

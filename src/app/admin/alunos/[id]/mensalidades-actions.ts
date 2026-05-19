@@ -167,18 +167,48 @@ export async function adicionarPresenca(alunoId: string, data: string): Promise<
 export async function editarMensalidade(
   mensalidadeId: string,
   alunoId: string,
-  dados: { valor: number; data_vencimento: string },
+  dados: { valor: number; data_vencimento: string; mes_referencia: string },
 ): Promise<ActionResult> {
   const auth = await requireAdmin();
   if (!auth.ok) return auth;
   const admin = createAdminClient();
 
+  const { data: duplicado } = await admin
+    .from("mensalidades")
+    .select("id")
+    .eq("aluno_id", alunoId)
+    .eq("mes_referencia", dados.mes_referencia)
+    .neq("id", mensalidadeId)
+    .maybeSingle();
+
+  if (duplicado) return { ok: false, erro: "Já existe mensalidade para esse mês." };
+
   const { error } = await admin
     .from("mensalidades")
-    .update({ valor: dados.valor, data_vencimento: dados.data_vencimento })
+    .update({ valor: dados.valor, data_vencimento: dados.data_vencimento, mes_referencia: dados.mes_referencia })
     .eq("id", mensalidadeId);
 
   if (error) return { ok: false, erro: error.message };
+
+  revalidatePath(`/admin/alunos/${alunoId}`);
+  return { ok: true };
+}
+
+export async function editarMensalidadesEmLote(
+  alunoId: string,
+  updates: Array<{ id: string; valor: number; data_vencimento: string; mes_referencia: string }>,
+): Promise<ActionResult> {
+  const auth = await requireAdmin();
+  if (!auth.ok) return auth;
+  const admin = createAdminClient();
+
+  for (const u of updates) {
+    const { error } = await admin
+      .from("mensalidades")
+      .update({ valor: u.valor, data_vencimento: u.data_vencimento, mes_referencia: u.mes_referencia })
+      .eq("id", u.id);
+    if (error) return { ok: false, erro: error.message };
+  }
 
   revalidatePath(`/admin/alunos/${alunoId}`);
   return { ok: true };
