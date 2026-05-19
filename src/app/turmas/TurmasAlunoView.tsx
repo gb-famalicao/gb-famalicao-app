@@ -6,6 +6,7 @@ import { ArrowLeft, Calendar, Loader2, Users, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { StatusAula, StatusReserva, CategoriaFaixa } from "@/lib/types";
 import { reservar, cancelarMinhaReserva } from "./turmas-actions";
+import { getTurmaTag } from "@/lib/turma-tags";
 
 export interface AulaParaAluno {
   id: string;
@@ -150,18 +151,40 @@ export function TurmasAlunoView({ aulas: aulasProp }: Props) {
                       hasReserva ? "border-gb-blue/30" : "border-gray-100"
                     )}
                   >
-                    {/* Time */}
-                    <div className={cn(
-                      "w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0",
-                      hasReserva ? "bg-gb-blue text-white" : "bg-gb-blue/10 text-gb-blue"
-                    )}>
-                      <span className="text-sm font-black tabular-nums">{formatarHorario(aula.horario)}</span>
-                    </div>
+                    {/* Thumbnail */}
+                    {(() => {
+                      const tag = aula.turma ? getTurmaTag(aula.turma.nome) : null;
+                      return tag ? (
+                        <div
+                          className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: tag.bg }}
+                        >
+                          <span className="text-white font-black text-xs leading-none text-center px-1">
+                            {tag.code}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className={cn(
+                          "w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0",
+                          hasReserva ? "bg-gb-blue text-white" : "bg-gb-blue/10 text-gb-blue"
+                        )}>
+                          <span className="text-sm font-black tabular-nums">{formatarHorario(aula.horario)}</span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-bold text-gray-900 text-sm">{aula.turma?.nome ?? "—"}</p>
+                        {(() => {
+                          const tag = aula.turma ? getTurmaTag(aula.turma.nome) : null;
+                          return (
+                            <p className="font-bold text-gray-900 text-sm">
+                              {aula.turma?.nome ?? "—"}
+                              {tag && <span className="font-normal text-gray-500"> · {formatarHorario(aula.horario)}</span>}
+                            </p>
+                          );
+                        })()}
                         {aula.turma?.categoria && (
                           <span className={cn(
                             "text-xs px-2 py-0.5 rounded-full font-medium",
