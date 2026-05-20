@@ -97,6 +97,7 @@ const hoje = new Date().toISOString().split("T")[0];
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
   aluno: Profile;
+  email: string | null;
   presencas: PresencaItem[];
   mensalidades: Mensalidade[];
   graduacoes: HistoricoGraduacao[];
@@ -109,6 +110,7 @@ interface Props {
 // ─── Component ────────────────────────────────────────────────────────────────
 export function AlunoEditView({
   aluno: alunoProp,
+  email,
   presencas: presencasProp,
   mensalidades: mensalidadesProp,
   graduacoes: graduacoesProp,
@@ -595,6 +597,12 @@ export function AlunoEditView({
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {email && (
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label htmlFor="email">E-mail</Label>
+              <Input id="email" type="email" value={email} readOnly className="bg-gray-50 text-gray-500 cursor-default" />
+            </div>
+          )}
           <div className="sm:col-span-2 space-y-1.5">
             <Label htmlFor="nome_completo">Nome completo</Label>
             <Input id="nome_completo" value={form.nome_completo} onChange={(e) => setForm((f) => ({ ...f, nome_completo: e.target.value }))} />

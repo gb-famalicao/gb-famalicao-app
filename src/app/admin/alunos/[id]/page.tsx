@@ -21,6 +21,7 @@ export default async function AlunoDetailPage({ params }: Props) {
     { data: responsavelRow },
     { data: dependentesRows },
     { data: alunosComLoginRows },
+    authUserResult,
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", id).single(),
     supabase
@@ -53,6 +54,7 @@ export default async function AlunoDetailPage({ params }: Props) {
       .neq("id", id)
       .or("sem_login.is.null,sem_login.eq.false")
       .order("nome_completo"),
+    supabase.auth.admin.getUserById(id),
   ]);
 
   if (!aluno) notFound();
@@ -65,6 +67,7 @@ export default async function AlunoDetailPage({ params }: Props) {
     : null;
 
   const todosProfiles = (alunosComLoginRows ?? []) as ProfileSimples[];
+  const emailAluno = authUserResult?.data?.user?.email ?? null;
 
   const responsavelId = responsavelRow?.responsavel_id ?? null;
   const dependentesIds = (dependentesRows ?? []).map((r) => r.dependente_id as string);
@@ -81,6 +84,7 @@ export default async function AlunoDetailPage({ params }: Props) {
   return (
     <AlunoEditView
       aluno={alunoProfile}
+      email={emailAluno}
       presencas={(presencas ?? []) as PresencaItem[]}
       mensalidades={(mensalidades ?? []) as Mensalidade[]}
       graduacoes={historicoGrad}
