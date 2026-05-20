@@ -11,9 +11,11 @@ interface PresencasViewProps {
   presencas: PresencaItem[];
   pessoas: PessoaFiltro[];
   responsavelId: string;
+  initialMes: number;
+  initialAno: number;
 }
 
-export function PresencasView({ presencas, pessoas, responsavelId }: PresencasViewProps) {
+export function PresencasView({ presencas, pessoas, responsavelId, initialMes, initialAno }: PresencasViewProps) {
   const router = useRouter();
 
   return (
@@ -47,6 +49,8 @@ export function PresencasView({ presencas, pessoas, responsavelId }: PresencasVi
           presencas={presencas}
           pessoas={pessoas}
           responsavelId={responsavelId}
+          initialMes={initialMes}
+          initialAno={initialAno}
         />
       </div>
     </div>

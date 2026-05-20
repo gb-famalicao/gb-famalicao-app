@@ -44,11 +44,15 @@ export default async function PresencasPage() {
     })),
   ];
 
+  const agora = new Date();
+
   return (
     <PresencasView
       presencas={(presencas ?? []) as PresencaItem[]}
       pessoas={pessoas}
       responsavelId={user.id}
+      initialMes={agora.getMonth()}
+      initialAno={agora.getFullYear()}
     />
   );
 }

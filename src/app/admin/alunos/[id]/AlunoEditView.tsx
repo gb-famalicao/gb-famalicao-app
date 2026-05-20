@@ -301,95 +301,129 @@ export function AlunoEditView({
   async function handleGraduar() {
     setGradSalvando(true);
     setGradErro("");
-    const result = await registrarGraduacao(
-      aluno.id,
-      aluno.faixa,
-      aluno.graus ?? 0,
-      gradForm.faixa,
-      Number(gradForm.graus),
-      gradForm.categoria,
-      gradForm.data,
-      gradForm.obs || undefined,
-    );
-    if (!result.ok) {
-      setGradErro(result.erro ?? "Erro ao registar graduação.");
-    } else {
-      setAluno((p) => ({ ...p, faixa: gradForm.faixa, graus: Number(gradForm.graus), categoria: gradForm.categoria }));
-      setGraduacoes((prev) => [result.graduacao, ...prev]);
-      setMostraFormGrad(false);
-      setGradErro("");
-      setGradForm((f) => ({ ...f, obs: "", data: hoje }));
+    try {
+      const result = await registrarGraduacao(
+        aluno.id,
+        aluno.faixa,
+        aluno.graus ?? 0,
+        gradForm.faixa,
+        Number(gradForm.graus),
+        gradForm.categoria,
+        gradForm.data,
+        gradForm.obs || undefined,
+      );
+      if (!result.ok) {
+        setGradErro(result.erro ?? "Erro ao registar graduação.");
+      } else {
+        setAluno((p) => ({ ...p, faixa: gradForm.faixa, graus: Number(gradForm.graus), categoria: gradForm.categoria }));
+        setGraduacoes((prev) => [result.graduacao, ...prev]);
+        setMostraFormGrad(false);
+        setGradErro("");
+        setGradForm((f) => ({ ...f, obs: "", data: hoje }));
+      }
+    } catch {
+      setGradErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setGradSalvando(false);
     }
-    setGradSalvando(false);
   }
 
   async function handleExcluirGraduacao(id: string) {
     if (!confirm("Eliminar esta graduação do histórico?")) return;
-    const result = await excluirGraduacao(id);
-    if (result.ok) setGraduacoes((prev) => prev.filter((g) => g.id !== id));
+    try {
+      const result = await excluirGraduacao(id);
+      if (result.ok) setGraduacoes((prev) => prev.filter((g) => g.id !== id));
+    } catch {
+      // silently ignore network errors — user can retry
+    }
   }
 
   async function handleMarcarPago(mensalidadeId: string) {
     setAcao(mensalidadeId); setAcaoErro("");
-    const result = await serverMarcarPago(mensalidadeId, aluno.id);
-    if (!result.ok) {
-      setAcaoErro(result.erro ?? "Erro ao marcar como pago.");
-    } else {
-      const dia = new Date().toISOString().split("T")[0];
-      setMensalidades((prev) =>
-        prev.map((m) => m.id === mensalidadeId ? { ...m, status: "pago" as StatusMensalidade, data_pagamento: dia } : m)
-      );
+    try {
+      const result = await serverMarcarPago(mensalidadeId, aluno.id);
+      if (!result.ok) {
+        setAcaoErro(result.erro ?? "Erro ao marcar como pago.");
+      } else {
+        const dia = new Date().toISOString().split("T")[0];
+        setMensalidades((prev) =>
+          prev.map((m) => m.id === mensalidadeId ? { ...m, status: "pago" as StatusMensalidade, data_pagamento: dia } : m)
+        );
+      }
+    } catch {
+      setAcaoErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setAcao(null);
     }
-    setAcao(null);
   }
 
   async function handleDesmarcarPago(mensalidadeId: string) {
     if (!confirm("Reverter pagamento para pendente?")) return;
     setAcao(`${mensalidadeId}-desmarcar`); setAcaoErro("");
-    const result = await serverDesmarcarPago(mensalidadeId, aluno.id);
-    if (!result.ok) {
-      setAcaoErro(result.erro ?? "Erro ao reverter pagamento.");
-    } else {
-      setMensalidades((prev) =>
-        prev.map((m) => m.id === mensalidadeId ? { ...m, status: "pendente" as StatusMensalidade, data_pagamento: null } : m)
-      );
+    try {
+      const result = await serverDesmarcarPago(mensalidadeId, aluno.id);
+      if (!result.ok) {
+        setAcaoErro(result.erro ?? "Erro ao reverter pagamento.");
+      } else {
+        setMensalidades((prev) =>
+          prev.map((m) => m.id === mensalidadeId ? { ...m, status: "pendente" as StatusMensalidade, data_pagamento: null } : m)
+        );
+      }
+    } catch {
+      setAcaoErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setAcao(null);
     }
-    setAcao(null);
   }
 
   async function handleGerarProximoMes() {
     if (mensalidades.length === 0) { setMostraCriarPrimeira(true); return; }
     setAcao("gerar"); setAcaoErro("");
-    const result = await serverGerarProximoMes(aluno.id);
-    if (!result.ok) setAcaoErro(result.erro ?? "Erro ao gerar mensalidade.");
-    else if (result.mensalidade) setMensalidades((prev) => [result.mensalidade!, ...prev]);
-    setAcao(null);
+    try {
+      const result = await serverGerarProximoMes(aluno.id);
+      if (!result.ok) setAcaoErro(result.erro ?? "Erro ao gerar mensalidade.");
+      else if (result.mensalidade) setMensalidades((prev) => [result.mensalidade!, ...prev]);
+    } catch {
+      setAcaoErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setAcao(null);
+    }
   }
 
   async function handleCriarPrimeiraMensalidade() {
     const valor = parseFloat(primeiraMensalidadeForm.valor.replace(",", "."));
     if (!valor || valor <= 0) { setAcaoErro("Valor inválido."); return; }
     setAcao("criar-primeira"); setAcaoErro("");
-    const result = await serverCriarPrimeiraMensalidade(aluno.id, {
-      valor,
-      mes_referencia:  primeiraMensalidadeForm.mes_referencia,
-      data_vencimento: primeiraMensalidadeForm.data_vencimento,
-    });
-    if (!result.ok) setAcaoErro(result.erro ?? "Erro ao criar mensalidade.");
-    else if (result.mensalidade) {
-      setMensalidades([result.mensalidade]);
-      setMostraCriarPrimeira(false);
+    try {
+      const result = await serverCriarPrimeiraMensalidade(aluno.id, {
+        valor,
+        mes_referencia:  primeiraMensalidadeForm.mes_referencia,
+        data_vencimento: primeiraMensalidadeForm.data_vencimento,
+      });
+      if (!result.ok) setAcaoErro(result.erro ?? "Erro ao criar mensalidade.");
+      else if (result.mensalidade) {
+        setMensalidades([result.mensalidade]);
+        setMostraCriarPrimeira(false);
+      }
+    } catch {
+      setAcaoErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setAcao(null);
     }
-    setAcao(null);
   }
 
   async function handleExcluirMensalidade(mensalidadeId: string) {
     if (!confirm("Excluir esta mensalidade? Esta ação não pode ser revertida.")) return;
     setAcao(`${mensalidadeId}-excluir`); setAcaoErro("");
-    const result = await serverExcluirMensalidade(mensalidadeId, aluno.id);
-    if (!result.ok) setAcaoErro(result.erro ?? "Erro ao excluir mensalidade.");
-    else setMensalidades((prev) => prev.filter((m) => m.id !== mensalidadeId));
-    setAcao(null);
+    try {
+      const result = await serverExcluirMensalidade(mensalidadeId, aluno.id);
+      if (!result.ok) setAcaoErro(result.erro ?? "Erro ao excluir mensalidade.");
+      else setMensalidades((prev) => prev.filter((m) => m.id !== mensalidadeId));
+    } catch {
+      setAcaoErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setAcao(null);
+    }
   }
 
   async function handleSalvarEdicao() {
@@ -400,16 +434,21 @@ export function AlunoEditView({
     if (!editando.mesReferencia) { setAcaoErro("Mês obrigatório."); return; }
     setAcao(`${editando.id}-editar`); setAcaoErro("");
     const mesRef = `${editando.mesReferencia}-01`;
-    const result = await serverEditarMensalidade(editando.id, aluno.id, { valor, data_vencimento: editando.dataVencimento, mes_referencia: mesRef });
-    if (!result.ok) {
-      setAcaoErro(result.erro ?? "Erro ao guardar alterações.");
-    } else {
-      setMensalidades((prev) =>
-        prev.map((m) => m.id === editando.id ? { ...m, valor, data_vencimento: editando.dataVencimento, mes_referencia: mesRef } : m)
-      );
-      setEditando(null);
+    try {
+      const result = await serverEditarMensalidade(editando.id, aluno.id, { valor, data_vencimento: editando.dataVencimento, mes_referencia: mesRef });
+      if (!result.ok) {
+        setAcaoErro(result.erro ?? "Erro ao guardar alterações.");
+      } else {
+        setMensalidades((prev) =>
+          prev.map((m) => m.id === editando.id ? { ...m, valor, data_vencimento: editando.dataVencimento, mes_referencia: mesRef } : m)
+        );
+        setEditando(null);
+      }
+    } catch {
+      setAcaoErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setAcao(null);
     }
-    setAcao(null);
   }
 
   async function handleSalvarLote() {
@@ -423,17 +462,22 @@ export function AlunoEditView({
       updates.push({ id: row.id, valor, data_vencimento: row.dataVencimento, mes_referencia: `${row.mesReferencia}-01` });
     }
     setAcaoLote(true);
-    const result = await serverEditarMensalidadesEmLote(aluno.id, updates);
-    setAcaoLote(false);
-    if (!result.ok) { setLoteErro(result.erro ?? "Erro ao guardar alterações."); return; }
-    setMensalidades((prev) =>
-      prev.map((m) => {
-        const u = updates.find((x) => x.id === m.id);
-        return u ? { ...m, valor: u.valor, data_vencimento: u.data_vencimento, mes_referencia: u.mes_referencia } : m;
-      })
-    );
-    setEditandoLote(false);
-    setLoteErro("");
+    try {
+      const result = await serverEditarMensalidadesEmLote(aluno.id, updates);
+      if (!result.ok) { setLoteErro(result.erro ?? "Erro ao guardar alterações."); return; }
+      setMensalidades((prev) =>
+        prev.map((m) => {
+          const u = updates.find((x) => x.id === m.id);
+          return u ? { ...m, valor: u.valor, data_vencimento: u.data_vencimento, mes_referencia: u.mes_referencia } : m;
+        })
+      );
+      setEditandoLote(false);
+      setLoteErro("");
+    } catch {
+      setLoteErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setAcaoLote(false);
+    }
   }
 
   function handleAdicionarDataLista() {
@@ -446,29 +490,39 @@ export function AlunoEditView({
   async function handleAdicionarPresencas() {
     if (datasPresenca.length === 0) return;
     setAddPresencaLoading(true); setAddPresencaErro("");
-    const result = await serverAdicionarPresencas(aluno.id, datasPresenca);
-    setAddPresencaLoading(false);
-    if (!result.ok) { setAddPresencaErro(result.erro ?? "Erro ao adicionar presenças."); return; }
-    if (result.novas && result.novas.length > 0) {
-      setPresencas(prev => [...result.novas!, ...prev]);
+    try {
+      const result = await serverAdicionarPresencas(aluno.id, datasPresenca);
+      if (!result.ok) { setAddPresencaErro(result.erro ?? "Erro ao adicionar presenças."); return; }
+      if (result.novas && result.novas.length > 0) {
+        setPresencas(prev => [...result.novas!, ...prev]);
+      }
+      if (result.duplicadas && result.duplicadas.length > 0) {
+        setAddPresencaErro(`${result.adicionadas} adicionada(s). ${result.duplicadas.length} já existia(m).`);
+      } else {
+        setMostraAddPresenca(false);
+      }
+      setDatasPresenca([]);
+    } catch {
+      setAddPresencaErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setAddPresencaLoading(false);
     }
-    if (result.duplicadas && result.duplicadas.length > 0) {
-      setAddPresencaErro(`${result.adicionadas} adicionada(s). ${result.duplicadas.length} já existia(m).`);
-    } else {
-      setMostraAddPresenca(false);
-    }
-    setDatasPresenca([]);
   }
 
   async function handleSalvarResponsavel() {
     setSalvandoResp(true);
     setRespErro("");
     setRespOk(false);
-    const result = await atualizarResponsavel(aluno.id, responsavelId || null);
-    setSalvandoResp(false);
-    if (!result.ok) { setRespErro(result.erro ?? "Erro ao salvar responsável."); return; }
-    setRespOk(true);
-    setTimeout(() => setRespOk(false), 3000);
+    try {
+      const result = await atualizarResponsavel(aluno.id, responsavelId || null);
+      if (!result.ok) { setRespErro(result.erro ?? "Erro ao salvar responsável."); return; }
+      setRespOk(true);
+      setTimeout(() => setRespOk(false), 3000);
+    } catch {
+      setRespErro("Erro de rede. Tenta novamente.");
+    } finally {
+      setSalvandoResp(false);
+    }
   }
 
   async function handleExcluirPresenca(id: string) {

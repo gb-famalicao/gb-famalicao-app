@@ -27,12 +27,14 @@ interface Props {
   pessoas?: PessoaFiltro[];
   responsavelId?: string;
   onExcluirPresenca?: (id: string) => Promise<void>;
+  initialMes?: number;
+  initialAno?: number;
 }
 
-export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "", onExcluirPresenca }: Props) {
+export function PresencasCalendario({ presencas, pessoas = [], responsavelId = "", onExcluirPresenca, initialMes, initialAno }: Props) {
   const hoje = new Date();
-  const [mes, setMes] = useState(hoje.getMonth());
-  const [ano, setAno] = useState(hoje.getFullYear());
+  const [mes, setMes] = useState(initialMes ?? hoje.getMonth());
+  const [ano, setAno] = useState(initialAno ?? hoje.getFullYear());
   const [excluindo, setExcluindo] = useState<string | null>(null);
   const [pessoaSelecionada, setPessoaSelecionada] = useState(responsavelId);
 
