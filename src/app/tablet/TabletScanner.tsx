@@ -75,7 +75,10 @@ export default function TabletScanner() {
           let titulo = "Não Registrado";
           let mensagem = "Não foi possível registrar a presença.";
 
-          if (msg.includes("expir") || msg.includes("expired")) {
+          if (msg.includes("mensalidade_bloqueada") || msg.includes("falar com simone")) {
+            titulo = "Presença Não Registada";
+            mensagem = "Não foi possível registar presença. Falar com Simone.";
+          } else if (msg.includes("expir") || msg.includes("expired")) {
             titulo = "QR Code Expirado";
             mensagem = "O código expirou. Peça ao aluno gerar um novo.";
           } else if (

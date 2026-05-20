@@ -10,6 +10,22 @@ interface ActionResult {
   reservaId?: string;
 }
 
+async function estaBloqueadoFinanceiramente(
+  alunoId: string,
+  admin: ReturnType<typeof createAdminClient>
+): Promise<boolean> {
+  const dez = new Date();
+  dez.setDate(dez.getDate() - 10);
+  const { data } = await admin
+    .from("mensalidades")
+    .select("id")
+    .eq("aluno_id", alunoId)
+    .eq("status", "atrasado")
+    .lte("data_vencimento", dez.toISOString().split("T")[0])
+    .limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
 async function verificarPermissao(userId: string, alunoId: string): Promise<boolean> {
   if (alunoId === userId) return true;
   const admin = createAdminClient();
@@ -41,6 +57,10 @@ export async function reservar(aulaId: string, alunoId: string): Promise<ActionR
 
   if (!aula) return { ok: false, erro: "Aula não encontrada." };
   if (aula.status !== "agendada") return { ok: false, erro: "Esta aula não está disponível." };
+
+  if (await estaBloqueadoFinanceiramente(alunoId, admin)) {
+    return { ok: false, erro: "Não é possível reservar a aula. Falar com Simone." };
+  }
 
   const { count } = await admin
     .from("reservas")

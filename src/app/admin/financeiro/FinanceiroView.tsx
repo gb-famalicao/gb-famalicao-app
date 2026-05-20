@@ -14,7 +14,7 @@ interface Props {
 
 function statusBadge(s: StatusMensalidade) {
   if (s === "pago") return { label: "Pago", cls: "bg-green-100 text-green-700" };
-  if (s === "atrasado") return { label: "Atrasado", cls: "bg-red-100 text-red-700" };
+  if (s === "atrasado") return { label: "Em atraso", cls: "bg-red-100 text-red-700" };
   return { label: "Pendente", cls: "bg-yellow-100 text-yellow-700" };
 }
 

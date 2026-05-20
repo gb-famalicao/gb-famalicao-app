@@ -63,6 +63,22 @@ interface PresencaManualResult {
   };
 }
 
+async function estaBloqueadoFinanceiramente(
+  alunoId: string,
+  admin: ReturnType<typeof createAdminClient>
+): Promise<boolean> {
+  const dez = new Date();
+  dez.setDate(dez.getDate() - 10);
+  const { data } = await admin
+    .from("mensalidades")
+    .select("id")
+    .eq("aluno_id", alunoId)
+    .eq("status", "atrasado")
+    .lte("data_vencimento", dez.toISOString().split("T")[0])
+    .limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
 export async function registrarPresencaManual(
   alunoId: string,
   aulaId: string
@@ -70,6 +86,10 @@ export async function registrarPresencaManual(
   const auth = await requireTablet();
   if (!auth.ok) return auth;
   const admin = createAdminClient();
+
+  if (await estaBloqueadoFinanceiramente(alunoId, admin)) {
+    return { ok: false, erro: "Não foi possível registar presença. Falar com Simone." };
+  }
 
   const umaHoraAtras = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data: recente } = await admin

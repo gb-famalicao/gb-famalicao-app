@@ -44,9 +44,10 @@ interface Props {
   categoriaAluno: CategoriaFaixa;
   userId: string;
   dependentes: DependenteOpcao[];
+  bloqueadosPorFinanceiro: string[];
 }
 
-export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, categoriaAluno, userId, dependentes }: Props) {
+export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, categoriaAluno, userId, dependentes, bloqueadosPorFinanceiro }: Props) {
   const router = useRouter();
   const [aulas, setAulas] = useState(aulasProp);
   const [reservasPorAluno, setReservasPorAluno] = useState(reservasProp);
@@ -71,6 +72,7 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
   const [diaAtivo, setDiaAtivo] = useState(dias[0].iso);
 
   const minhasReservas = reservasPorAluno[selecionadoId] ?? {};
+  const bloqueado = bloqueadosPorFinanceiro.includes(selecionadoId);
 
   const aulasNoDia = useMemo(
     () =>
@@ -360,15 +362,26 @@ export function AulasView({ aulas: aulasProp, reservasPorAluno: reservasProp, ca
 
                 <div className="mt-3 flex gap-2">
                   {!reservada && !lotado && (
-                    <button
-                      type="button"
-                      onClick={() => handleReservar(aula.id)}
-                      disabled={!!acao}
-                      className="flex-1 h-9 rounded-xl bg-gb-blue text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-gb-blue-dark transition-colors disabled:opacity-50"
-                    >
-                      {isLoadingAula ? <Loader2 size={15} className="animate-spin" /> : null}
-                      Reservar
-                    </button>
+                    bloqueado ? (
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-9 rounded-xl bg-amber-50 border border-amber-200 text-amber-400 text-sm flex items-center justify-center font-medium cursor-not-allowed select-none">
+                          Reservar
+                        </div>
+                        <p className="text-[11px] text-amber-600 text-center leading-tight">
+                          Não é possível reservar a aula. Falar com Simone.
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleReservar(aula.id)}
+                        disabled={!!acao}
+                        className="flex-1 h-9 rounded-xl bg-gb-blue text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-gb-blue-dark transition-colors disabled:opacity-50"
+                      >
+                        {isLoadingAula ? <Loader2 size={15} className="animate-spin" /> : null}
+                        Reservar
+                      </button>
+                    )
                   )}
                   {reservada && (
                     <button

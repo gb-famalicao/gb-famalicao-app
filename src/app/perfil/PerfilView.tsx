@@ -779,7 +779,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                       {m.status === "pago"
                         ? `Pago${m.data_pagamento ? ` em ${formatarData(m.data_pagamento)}` : ""}`
                         : m.status === "atrasado"
-                        ? "Atrasado"
+                        ? "Em atraso"
                         : "Pendente"
                       }
                     </span>
@@ -828,7 +828,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                 const mensStatusLabel: Record<StatusMensalidade, string> = {
                   pago:     "Em dia",
                   pendente: "Pendente",
-                  atrasado: "Atrasado",
+                  atrasado: "Em atraso",
                 };
                 const isUploadingThis = uploadingDepId === dep.id;
                 return (

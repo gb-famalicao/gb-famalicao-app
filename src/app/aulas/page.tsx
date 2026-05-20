@@ -55,7 +55,10 @@ export default async function AulasPage() {
   const aulaIds = aulas.map((a) => a.id);
   const todosIds = [user.id, ...dependentes.map((d) => d.id)];
 
-  const [reservasRes, todasReservasRes] = await Promise.all([
+  const dezDiasAtras = new Date();
+  dezDiasAtras.setDate(dezDiasAtras.getDate() - 10);
+
+  const [reservasRes, todasReservasRes, bloqueadosRes] = await Promise.all([
     aulaIds.length > 0
       ? admin.from("reservas").select("aula_id").in("aula_id", aulaIds).eq("status", "confirmada")
       : { data: [] as { aula_id: string }[] },
@@ -66,7 +69,17 @@ export default async function AulasPage() {
           .in("aluno_id", todosIds)
           .in("aula_id", aulaIds)
       : { data: [] as { id: string; aula_id: string; status: string; aluno_id: string }[] },
+    admin
+      .from("mensalidades")
+      .select("aluno_id")
+      .in("aluno_id", todosIds)
+      .eq("status", "atrasado")
+      .lte("data_vencimento", dezDiasAtras.toISOString().split("T")[0]),
   ]);
+
+  const bloqueadosPorFinanceiro = [
+    ...new Set(((bloqueadosRes.data ?? []) as { aluno_id: string }[]).map((b) => b.aluno_id)),
+  ];
 
   const contagem: Record<string, number> = {};
   for (const r of (reservasRes.data ?? [])) {
@@ -97,6 +110,7 @@ export default async function AulasPage() {
       categoriaAluno={categoriaAluno}
       userId={user.id}
       dependentes={dependentes}
+      bloqueadosPorFinanceiro={bloqueadosPorFinanceiro}
     />
   );
 }

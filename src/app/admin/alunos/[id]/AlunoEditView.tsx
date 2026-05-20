@@ -89,7 +89,7 @@ const STATUS_MENS_CLASS: Record<StatusMensalidade, string> = {
   atrasado: "bg-red-100 text-red-700",
 };
 const STATUS_MENS_LABEL: Record<StatusMensalidade, string> = {
-  pago: "Pago", pendente: "Pendente", atrasado: "Atrasado",
+  pago: "Pago", pendente: "Pendente", atrasado: "Em atraso",
 };
 
 const hoje = new Date().toISOString().split("T")[0];
