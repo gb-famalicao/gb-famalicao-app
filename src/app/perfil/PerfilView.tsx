@@ -2,9 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   User, Phone, Calendar, Mail, LogOut, ShieldCheck,
-  Award, QrCode, Camera, Loader2, Check, X, Pencil, CalendarDays, CreditCard, BookOpen, Megaphone, Images, Users, ChevronRight, ChevronDown, Bell,
+  Award, QrCode, Camera, Loader2, Check, X, Pencil, CalendarDays, CreditCard, BookOpen, Megaphone, Images, Users, ChevronRight, ChevronDown, Bell, Star,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { FaixaBJJ, inferCategoria } from "@/components/FaixaBJJ";
@@ -13,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mascararTelefonePT, formatarTelefonePT, formatarMoeda, formatarMes, formatarData, labelCorFaixa } from "@/lib/utils";
-import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil } from "@/lib/types";
+import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { DependenteModal } from "./DependenteModal";
 import { atualizarFotoDependente } from "./dependente-foto-actions";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
@@ -104,6 +105,17 @@ async function comprimirParaWebP(file: File): Promise<Blob> {
   });
 }
 
+interface AptosGraduarAluno {
+  id: string;
+  nome_completo: string;
+  faixa: CorFaixa;
+  graus: number;
+  categoria: CategoriaFaixa;
+  proximaPromocao: { faixa: CorFaixa; graus: number };
+  semanasQualificadas: number;
+  semanasNecessarias: number;
+}
+
 interface PerfilViewProps {
   profile: Profile | null;
   email: string;
@@ -114,9 +126,10 @@ interface PerfilViewProps {
   ultimoTreino: string | null;
   avisosTimestamps: string[];
   dependentes: DependentePerfil[];
+  aptosGraduar: AptosGraduarAluno[];
 }
 
-export function PerfilView({ profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, avisosTimestamps, dependentes }: PerfilViewProps) {
+export function PerfilView({ profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, avisosTimestamps, dependentes, aptosGraduar }: PerfilViewProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const depFileInputRef = useRef<HTMLInputElement>(null);
@@ -611,6 +624,52 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
               )}
             </div>
         </AccordionCard>}
+
+        {/* Aptos a Graduar — admin/professor only */}
+        {(profile.perfil === "admin" || profile.perfil === "professor") && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Star size={15} className="text-emerald-500" />
+                <span className="text-sm font-bold text-gray-700">Aptos a Graduar</span>
+                {aptosGraduar.length > 0 && (
+                  <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                    {aptosGraduar.length}
+                  </span>
+                )}
+              </div>
+              <span className="text-xs text-gray-400">presenças e tempo verificados</span>
+            </div>
+            {aptosGraduar.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <p className="text-sm text-gray-400">Nenhum aluno apto a graduar de momento.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-gray-50">
+                {aptosGraduar.map((a) => (
+                  <li key={a.id}>
+                    <Link
+                      href={`/admin/alunos/${a.id}`}
+                      className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="w-14 shrink-0 flex items-center justify-center">
+                        <FaixaBJJ faixa={a.faixa} graus={a.graus} categoria={a.categoria} tamanho="sm" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800 truncate">{a.nome_completo}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{a.semanasQualificadas} semanas qualificadas</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <ChevronRight size={14} className="text-gray-300" />
+                        <FaixaBJJ faixa={a.proximaPromocao.faixa} graus={a.proximaPromocao.graus} categoria={a.categoria} tamanho="sm" />
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {/* Dados pessoais */}
         <AccordionCard
