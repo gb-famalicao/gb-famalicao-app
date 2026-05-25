@@ -31,6 +31,18 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+
+  // Recovery codes sometimes land at / when the redirectTo URL isn't whitelisted in Supabase.
+  // Rescue them so the code isn't lost when the root page redirects to /login.
+  if (pathname === "/" && request.nextUrl.searchParams.get("code")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    if (!url.searchParams.get("next")) {
+      url.searchParams.set("next", "/nova-senha");
+    }
+    return NextResponse.redirect(url);
+  }
+
   const publicPaths = ["/login", "/cadastro", "/tablet/login", "/auth/callback", "/esqueci-senha", "/nova-senha", "/api/push/send"];
 
   if (!user && !publicPaths.includes(pathname)) {
