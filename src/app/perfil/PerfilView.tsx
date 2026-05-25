@@ -149,6 +149,8 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
   const [mensalidadesOpen, setMensalidadesOpen] = useState(true);
   const [dependentesOpen, setDependentesOpen] = useState(true);
 
+  const [profile, setProfile] = useState(profileProp);
+
   useEffect(() => {
     setIdadeStr(calcularIdade(profile?.data_nascimento ?? null));
   }, [profile?.data_nascimento]);
@@ -161,7 +163,6 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
     setUnreadAvisos(count);
   }, [avisosTimestamps]);
 
-  const [profile, setProfile] = useState(profileProp);
   const [fotoUrl, setFotoUrl] = useState(profileProp?.foto_url ?? null);
   const [uploading, setUploading] = useState(false);
   const [uploadErro, setUploadErro] = useState("");
