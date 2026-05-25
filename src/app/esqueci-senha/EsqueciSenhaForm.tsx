@@ -6,7 +6,7 @@ import { Loader2, Mail, ArrowLeft, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { enviarResetSenha } from "./esqueci-senha-actions";
+import { createClient } from "@/lib/supabase/client";
 
 export function EsqueciSenhaForm() {
   const [email, setEmail] = useState("");
@@ -19,8 +19,13 @@ export function EsqueciSenhaForm() {
     setErro("");
     setCarregando(true);
     try {
-      const res = await enviarResetSenha(email.trim().toLowerCase());
-      if (res.ok) {
+      const supabase = createClient();
+      const redirectTo = `${window.location.origin}/auth/callback?next=/nova-senha`;
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        { redirectTo },
+      );
+      if (!error) {
         setEnviado(true);
       } else {
         setErro("Erro ao enviar email. Tenta novamente.");
