@@ -187,7 +187,7 @@ export async function sendPushGraduacao() {
   for (const aluno of alunos) {
     const { data: presencas } = await admin
       .from("presencas")
-      .select("data")
+      .select("dia_registro")
       .eq("aluno_id", aluno.id);
 
     const { data: historico } = await admin
@@ -198,7 +198,7 @@ export async function sendPushGraduacao() {
 
     const resultado = calcularElegibilidade(
       aluno as Parameters<typeof calcularElegibilidade>[0],
-      (presencas ?? []).map((p) => p.data),
+      (presencas ?? []).map((p) => p.dia_registro),
       historico ?? [],
     );
 

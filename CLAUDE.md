@@ -118,6 +118,8 @@ PLAYWRIGHT_ADMIN_PASSWORD=<strong-random>
 
 **Sentry em Vercel:** adicionar `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, e `SENTRY_AUTH_TOKEN` no dashboard do Vercel (Settings → Environment Variables) para produção + preview.
 
+**Cron jobs (Vercel):** adicionar `CRON_SECRET=<secret-aleatorio>` nas env vars do Vercel. O `/api/push/send` valida este token no header `Authorization: Bearer …` para aceitar chamadas dos crons configurados em `vercel.json`.
+
 ---
 
 ## 5. Mapa de rotas
