@@ -331,7 +331,7 @@ export function AlunoEditView({
   async function handleExcluirGraduacao(id: string) {
     if (!confirm("Eliminar esta graduação do histórico?")) return;
     try {
-      const result = await excluirGraduacao(id);
+      const result = await excluirGraduacao(id, aluno.id);
       if (result.ok) setGraduacoes((prev) => prev.filter((g) => g.id !== id));
     } catch {
       // silently ignore network errors — user can retry
