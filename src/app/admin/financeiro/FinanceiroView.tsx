@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { marcarPago, desmarcarPago } from "./actions";
+import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { Mensalidade, StatusMensalidade } from "@/lib/types";
 
 type MensalidadeComAluno = Mensalidade & {
@@ -14,7 +15,7 @@ interface Props {
 
 function statusBadge(s: StatusMensalidade) {
   if (s === "pago") return { label: "Pago", cls: "bg-green-100 text-green-700" };
-  if (s === "atrasado") return { label: "Em atraso", cls: "bg-red-100 text-red-700" };
+  if (s === "atrasado") return { label: "Vencida", cls: "bg-red-100 text-red-700" };
   return { label: "Pendente", cls: "bg-yellow-100 text-yellow-700" };
 }
 
@@ -52,7 +53,7 @@ export function FinanceiroView({ mensalidades }: Props) {
       if (busca && !nome.toLowerCase().includes(busca.toLowerCase())) return false;
       if (filtroAno && !m.mes_referencia.startsWith(filtroAno)) return false;
       if (filtroMes && m.mes_referencia.slice(5, 7) !== filtroMes) return false;
-      if (statusFiltro && m.status !== statusFiltro) return false;
+      if (statusFiltro && getEffectiveStatus(m) !== statusFiltro) return false;
       return true;
     });
   }, [mensalidades, busca, filtroAno, filtroMes, statusFiltro]);
@@ -158,7 +159,7 @@ export function FinanceiroView({ mensalidades }: Props) {
                 </tr>
               )}
               {filtered.map((m) => {
-                const { label, cls } = statusBadge(m.status);
+                const { label, cls } = statusBadge(getEffectiveStatus(m));
                 const isLoading = loadingId === m.id;
                 return (
                   <tr key={m.id} data-mensalidade-id={m.id} className="hover:bg-gray-50 transition-colors">
