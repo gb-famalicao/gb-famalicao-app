@@ -1037,7 +1037,7 @@ export function AlunoEditView({
                     <button
                       type="button"
                       onClick={() => handleExcluirGraduacao(g.id)}
-                      className="text-gray-300 hover:text-red-500 transition-colors"
+                      className="text-red-500 hover:text-red-700 transition-colors"
                       title="Eliminar graduação"
                     >
                       <Trash2 size={14} />
