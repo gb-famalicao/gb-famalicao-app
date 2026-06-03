@@ -86,7 +86,10 @@ async function getDashboardData(isAdmin: boolean) {
       .gte("dia_registro", inicioMes)
       .lte("dia_registro", fimMes),
     isAdmin
-      ? admin.from("mensalidades").select("aluno_id").eq("status", "atrasado")
+      ? admin.from("mensalidades")
+          .select("aluno_id")
+          .neq("status", "pago")
+          .lt("data_vencimento", hojeStr)
       : Promise.resolve({ data: [] }),
     admin.from("presencas")
       .select("id, registrado_em, aluno_id")
@@ -98,7 +101,7 @@ async function getDashboardData(isAdmin: boolean) {
     isAdmin
       ? admin.from("mensalidades")
           .select("aluno_id")
-          .eq("status", "pendente")
+          .neq("status", "pago")
           .gte("data_vencimento", hojeStr)
           .lte("data_vencimento", setesDiasStr)
       : Promise.resolve({ data: [] }),

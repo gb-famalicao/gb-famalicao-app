@@ -14,8 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mascararTelefonePT, formatarTelefonePT, formatarMoeda, formatarMes, formatarData, labelCorFaixa } from "@/lib/utils";
+import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { DependenteModal } from "./DependenteModal";
+import { NotificacoesModal } from "./NotificacoesModal";
 import { atualizarFotoDependente } from "./dependente-foto-actions";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 
@@ -124,18 +126,19 @@ interface PerfilViewProps {
   totalAulas: number;
   aulasMes: number;
   ultimoTreino: string | null;
-  avisosTimestamps: string[];
+  avisosNotif: { id: string; titulo: string; created_at: string }[];
   dependentes: DependentePerfil[];
   aptosGraduar: AptosGraduarAluno[];
 }
 
-export function PerfilView({ profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, avisosTimestamps, dependentes, aptosGraduar }: PerfilViewProps) {
+export function PerfilView({ profile: profileProp, email, mensalidades, historicoGraduacoes, totalAulas, aulasMes, ultimoTreino, avisosNotif, dependentes, aptosGraduar }: PerfilViewProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const depFileInputRef = useRef<HTMLInputElement>(null);
   const uploadingDepIdRef = useRef<string | null>(null);
 
-  const [unreadAvisos, setUnreadAvisos] = useState(0);
+  const [hasUnread, setHasUnread] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [idadeStr, setIdadeStr] = useState('');
   const [saindo, setSaindo] = useState(false);
   const [dependenteSelecionado, setDependenteSelecionado] = useState<DependentePerfil | null>(null);
@@ -156,12 +159,20 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
   }, [profile?.data_nascimento]);
 
   useEffect(() => {
-    const lastSeen = localStorage.getItem("avisos_last_seen");
-    const count = lastSeen
-      ? avisosTimestamps.filter((t) => new Date(t) > new Date(lastSeen)).length
-      : avisosTimestamps.length;
-    setUnreadAvisos(count);
-  }, [avisosTimestamps]);
+    const lastSeen = localStorage.getItem("notificacoes_last_seen");
+    if (!lastSeen) {
+      const hasMensalidadeAtrasada = mensalidades.some((m) => m.status !== "pago");
+      const hasAvisos = avisosNotif.length > 0;
+      setHasUnread(hasMensalidadeAtrasada || hasAvisos);
+      return;
+    }
+    const lastSeenDate = new Date(lastSeen);
+    const novoAviso = avisosNotif.some((a) => new Date(a.created_at) > lastSeenDate);
+    const novasMensalidades = mensalidades.some(
+      (m) => m.status !== "pago" && new Date(m.data_vencimento + "T09:00:00") > lastSeenDate
+    );
+    setHasUnread(novoAviso || novasMensalidades);
+  }, [avisosNotif, mensalidades]);
 
   const [fotoUrl, setFotoUrl] = useState(profileProp?.foto_url ?? null);
   const [uploading, setUploading] = useState(false);
@@ -390,15 +401,13 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => router.push("/avisos")}
+              onClick={() => { setNotifOpen(true); setHasUnread(false); }}
               className="relative w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"
               aria-label="Notificações"
             >
               <Bell size={18} className="text-white" />
-              {unreadAvisos > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                  {unreadAvisos > 9 ? "9+" : unreadAvisos}
-                </span>
+              {hasUnread && (
+                <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-red-500 border-2 border-[#1a1a1a]" />
               )}
             </button>
             <button
@@ -513,16 +522,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
           />
           <ActionCard
             onClick={() => router.push("/avisos")}
-            icon={
-              <div className="relative">
-                <Megaphone size={20} className="text-gray-500" />
-                {unreadAvisos > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                    {unreadAvisos > 9 ? "9+" : unreadAvisos}
-                  </span>
-                )}
-              </div>
-            }
+            icon={<Megaphone size={20} className="text-gray-500" />}
             label="Avisos"
           />
           <ActionCard
@@ -823,7 +823,9 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
             title="Mensalidades"
           >
             <div className="space-y-2">
-              {mensalidades.map((m) => (
+              {mensalidades.map((m) => {
+                const ef = getEffectiveStatus(m);
+                return (
                 <div
                   key={m.id}
                   className="flex items-center justify-between gap-3 py-2.5 border-b border-gray-100 last:border-0"
@@ -835,24 +837,25 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   <div className="text-right shrink-0">
                     <p className="text-[14px] font-medium text-gray-900">{m.valor != null ? formatarMoeda(m.valor) : "—"}</p>
                     <span className={`inline-block text-[11px] font-medium px-2 py-0.5 rounded-full mt-1 ${
-                      m.status === "pago"
+                      ef === "pago"
                         ? "bg-emerald-500/15 text-emerald-600"
-                        : m.status === "atrasado"
+                        : ef === "atrasado"
                         ? "bg-red-500/15 text-red-600"
                         : "bg-amber-500/15 text-amber-600"
                     }`}>
-                      {m.status === "pago"
+                      {ef === "pago"
                         ? `Pago${m.data_pagamento ? ` em ${formatarData(m.data_pagamento)}` : ""}`
-                        : m.status === "atrasado"
-                        ? "Em atraso"
+                        : ef === "atrasado"
+                        ? "Vencida"
                         : "Pendente"
                       }
                     </span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
-            {mensalidades.some((m) => m.status === "atrasado") && (
+            {mensalidades.some((m) => getEffectiveStatus(m) === "atrasado") && (
               <a
                 href="https://wa.me/14076941856"
                 target="_blank"
@@ -885,6 +888,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                   .join("")
                   .toUpperCase();
                 const ultimaMens = dep.mensalidades[0];
+                const ultimaMensEf = ultimaMens ? getEffectiveStatus(ultimaMens) : null;
                 const mensStatusColor: Record<StatusMensalidade, string> = {
                   pago:     "text-green-600 bg-green-50",
                   pendente: "text-amber-600 bg-amber-50",
@@ -893,7 +897,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                 const mensStatusLabel: Record<StatusMensalidade, string> = {
                   pago:     "Em dia",
                   pendente: "Pendente",
-                  atrasado: "Em atraso",
+                  atrasado: "Vencida",
                 };
                 const isUploadingThis = uploadingDepId === dep.id;
                 return (
@@ -933,9 +937,9 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                             {labelCorFaixa(dep.faixa)} · {dep.graus} grau{dep.graus !== 1 ? "s" : ""} · <span className="capitalize">{dep.categoria}</span>
                           </p>
                         )}
-                        {ultimaMens && (
-                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full ${mensStatusColor[ultimaMens.status]}`}>
-                            {mensStatusLabel[ultimaMens.status]}
+                        {ultimaMens && ultimaMensEf && (
+                          <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full ${mensStatusColor[ultimaMensEf]}`}>
+                            {mensStatusLabel[ultimaMensEf]}
                           </span>
                         )}
                       </div>
@@ -956,6 +960,14 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
         <DependenteModal
           dependente={dependentesState.find((d) => d.id === dependenteSelecionado.id) ?? dependenteSelecionado}
           onClose={() => setDependenteSelecionado(null)}
+        />
+      )}
+
+      {notifOpen && (
+        <NotificacoesModal
+          mensalidades={mensalidades}
+          avisos={avisosNotif}
+          onClose={() => setNotifOpen(false)}
         />
       )}
     </div>
