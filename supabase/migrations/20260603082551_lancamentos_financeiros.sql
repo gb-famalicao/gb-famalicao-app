@@ -1,0 +1,4 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260603000000_lancamentos_financeiros.sql
+-- (módulo financeiro: categorias_financeiras, formas_pagamento, fornecedores,
+-- lancamentos_financeiros + seed inicial).

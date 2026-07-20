@@ -1,0 +1,3 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260603000001_lancamentos_aluno_id.sql
+-- (ALTER TABLE lancamentos_financeiros ADD COLUMN aluno_id).

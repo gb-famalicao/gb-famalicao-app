@@ -1,0 +1,3 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260611000001_grant_execute_rls_helpers.sql
+-- (GRANT EXECUTE em is_staff/is_admin/is_tablet para authenticated/anon).

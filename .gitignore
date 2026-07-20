@@ -24,6 +24,10 @@
 
 # Claude Code local config
 .claude/settings.local.json
+.claude/launch.json
+
+# Supabase CLI local link state
+/supabase/.temp/
 
 # debug
 npm-debug.log*

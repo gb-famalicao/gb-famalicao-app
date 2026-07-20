@@ -1,0 +1,6 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção 3s depois de 20260603101536; sem SQL original
+-- recuperável. Nome repetido sugere um pequeno ajuste de sequência sobre
+-- 20260530104130/20260530000001_notificacoes_mensalidade.sql (cuja
+-- estrutura já bate certo com a tabela actual em produção). Placeholder
+-- mantido só para paridade de versões no `supabase migration list`.

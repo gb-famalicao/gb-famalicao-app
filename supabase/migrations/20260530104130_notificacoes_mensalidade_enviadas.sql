@@ -1,0 +1,3 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260530000001_notificacoes_mensalidade.sql
+-- (tabela notificacoes_mensalidade_enviadas, dedupe de push por mensalidade+tipo).

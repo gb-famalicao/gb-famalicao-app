@@ -1,0 +1,8 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; sem ficheiro histórico correspondente e sem SQL
+-- original recuperável. Pelo nome, é provavelmente uma correcção
+-- intermédia à lógica de status de verificar_bloqueio_financeiro,
+-- já superada pela versão actual em produção — ver
+-- 20260520000001_bloqueio_financeiro.sql, cujo conteúdo bate certo com
+-- pg_get_functiondef(verificar_bloqueio_financeiro) hoje. Placeholder
+-- mantido só para paridade de versões no `supabase migration list`.

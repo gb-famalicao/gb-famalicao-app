@@ -1,0 +1,6 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde à primeira parte de
+-- 20260502000002_recorrencia_diaria.sql (ALTER TYPE recorrencia_turma
+-- ADD VALUE 'diario' + índice único turma_id/data/horario).
+-- O ajuste seguinte à RPC gerar_aulas ficou registado à parte, ver
+-- 20260505114051_fix_gerar_aulas_diario.sql.

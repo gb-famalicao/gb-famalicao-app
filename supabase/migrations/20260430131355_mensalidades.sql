@@ -1,0 +1,8 @@
+-- Registo de paridade de versões — não executar.
+-- Esta versão está aplicada em produção (ledger remoto) e corresponde,
+-- em conteúdo, à migration local 20260430000000_mensalidades.sql
+-- (tabela mensalidades, enum status_mensalidade, RLS, trigger atualizado_em).
+-- Motivo da versão divergente: o ficheiro local foi escrito com timestamp
+-- manual; a aplicação real em produção (via MCP/dashboard) gerou este
+-- outro número de versão no ledger. Ver 20260430000000_mensalidades.sql
+-- para o SQL de referência.

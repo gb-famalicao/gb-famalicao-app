@@ -1,0 +1,9 @@
+ALTER FUNCTION public.set_updated_at() SET search_path = public;
+ALTER FUNCTION public.sync_dia_registro() SET search_path = public;
+ALTER FUNCTION public.handle_new_user() SET search_path = public, auth;
+ALTER FUNCTION public.is_staff() SET search_path = public;
+ALTER FUNCTION public.is_admin() SET search_path = public;
+ALTER FUNCTION public.is_tablet() SET search_path = public;
+ALTER FUNCTION public.gerar_qr_token() SET search_path = public;
+ALTER FUNCTION public.registrar_presenca_por_token(text) SET search_path = public;
+ALTER FUNCTION public.limpar_tokens_expirados() SET search_path = public;
