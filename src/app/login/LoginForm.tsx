@@ -110,6 +110,12 @@ export function LoginForm() {
           Registe-se
         </Link>
       </p>
+
+      <p className="text-center text-sm text-gray-500">
+        <Link href="/aula-experimental" className="text-gb-blue font-semibold hover:underline">
+          Agende sua aula experimental grátis
+        </Link>
+      </p>
     </form>
   );
 }

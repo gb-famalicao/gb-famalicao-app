@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { labelCorFaixa } from "@/lib/utils";
+import { formatarTelefone, telefoneLimpo } from "@/lib/phone";
 import { verificarEmailExistente, concluirCadastro } from "./cadastro-actions";
 import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
 
@@ -73,22 +74,6 @@ const BELT_TEXT: Partial<Record<CorFaixa, string>> = {
 
 // ─── Helpers ─────────────────────────────────────────────────
 
-function formatarTelefone(valor: string): string {
-  let digits: string;
-  if (valor.startsWith("+351")) {
-    digits = valor.slice(4).replace(/\D/g, "");
-  } else if (valor.startsWith("351")) {
-    digits = valor.slice(3).replace(/\D/g, "");
-  } else {
-    digits = valor.replace(/\D/g, "");
-  }
-  digits = digits.slice(0, 9);
-  if (!digits) return "+351 ";
-  if (digits.length <= 3) return `+351 ${digits}`;
-  if (digits.length <= 6) return `+351 ${digits.slice(0, 3)} ${digits.slice(3)}`;
-  return `+351 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
-}
-
 function mascaraData(valor: string): string {
   const nums = valor.replace(/\D/g, "").slice(0, 8);
   if (nums.length <= 2) return nums;
@@ -105,10 +90,6 @@ function dataParaISO(ddmmaaaa: string): string | null {
   const d = new Date(`${ano}-${mes}-${dia}`);
   if (isNaN(d.getTime())) return null;
   return `${ano}-${mes}-${dia}`;
-}
-
-function telefoneLimpo(telefone: string): string | null {
-  return telefone.replace(/\D/g, "").length > 3 ? telefone.trim() : null;
 }
 
 function calcularIdade(dataDDMMAAAA: string): number | null {

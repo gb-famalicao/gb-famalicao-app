@@ -11,7 +11,7 @@ interface AulaRow {
   horario: string;
   lotacao_maxima: number;
   status: string;
-  turma: { id: string; nome: string; categoria: string; ativa: boolean } | null;
+  turma: { id: string; nome: string; categoria: string; ativa: boolean; apenas_experimental: boolean } | null;
 }
 
 interface ReservaRichRow {
@@ -50,14 +50,14 @@ export default async function AulasPage() {
 
   const { data: aulasRaw } = await admin
     .from("aulas")
-    .select("id, turma_id, data, horario, lotacao_maxima, status, turma:turmas(id, nome, categoria, ativa)")
+    .select("id, turma_id, data, horario, lotacao_maxima, status, turma:turmas(id, nome, categoria, ativa, apenas_experimental)")
     .gte("data", hoje)
     .lte("data", fim)
     .eq("status", "agendada")
     .order("data")
     .order("horario");
 
-  const aulas = ((aulasRaw ?? []) as unknown as AulaRow[]).filter((a) => a.turma?.ativa);
+  const aulas = ((aulasRaw ?? []) as unknown as AulaRow[]).filter((a) => a.turma?.ativa && !a.turma?.apenas_experimental);
 
   const aulaIds = aulas.map((a) => a.id);
   const todosIds = [user.id, ...dependentes.map((d) => d.id)];
