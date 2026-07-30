@@ -1,0 +1,8 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; sem ficheiro histórico correspondente e sem SQL
+-- original recuperável (o ledger remoto não guarda o corpo da migration,
+-- só a versão/nome). O schema atual de profiles.nif já reflecte o estado
+-- final: coluna nullable, sem UNIQUE/CHECK — provavelmente um ajuste
+-- pequeno sobre 20260513134040_add_nif_to_profiles (ex.: idempotência ou
+-- correcção de nome de coluna). Placeholder mantido só para paridade de
+-- versões no `supabase migration list`.

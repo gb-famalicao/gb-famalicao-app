@@ -1,0 +1,3 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260513000001_add_nif.sql
+-- (ALTER TABLE profiles ADD COLUMN nif text).

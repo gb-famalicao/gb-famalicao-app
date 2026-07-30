@@ -1,0 +1,13 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; sem ficheiro histórico correspondente e sem SQL
+-- original recuperável.
+--
+-- ATENÇÃO — divergência encontrada: o nome sugere que registrar_presenca_por_token
+-- passou a exigir reserva confirmada para a aula do dia, conforme descrito
+-- no CLAUDE.md ("RPC verifica: reserva confirmada para hoje?"). A definição
+-- actual da função em produção (pg_get_functiondef, consultada nesta
+-- reconciliação) NÃO contém essa verificação — só valida token e bloqueio
+-- financeiro antes de inserir em presencas. Ou a checagem foi removida
+-- depois, ou vive noutro caminho (ex.: fluxo manual do tablet). Vale
+-- confirmar com o código actual de registrar_presenca-actions antes de
+-- assumir que a regra do CLAUDE.md está activa via QR.

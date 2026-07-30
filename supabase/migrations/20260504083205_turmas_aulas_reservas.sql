@@ -1,0 +1,4 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260501000002_turmas_aulas.sql
+-- (Fase 7: tabelas turmas/aulas/reservas, enums, RLS, RPC gerar_aulas
+-- na sua versão inicial). Ver esse ficheiro para o SQL.

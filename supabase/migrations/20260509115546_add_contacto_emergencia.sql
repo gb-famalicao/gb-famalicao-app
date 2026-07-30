@@ -1,0 +1,3 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260509000001_add_contacto_emergencia.sql
+-- (ALTER TABLE profiles ADD COLUMN contacto_emergencia text).

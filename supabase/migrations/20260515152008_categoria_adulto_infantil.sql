@@ -1,0 +1,3 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260515000002_categoria_adulto_infantil.sql
+-- (ALTER TYPE categoria_faixa ADD VALUE 'adulto_infantil').

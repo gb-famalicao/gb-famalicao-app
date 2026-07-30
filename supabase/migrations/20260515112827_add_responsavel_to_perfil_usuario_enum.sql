@@ -1,0 +1,3 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260515000001_add_responsavel_enum.sql
+-- (ALTER TYPE perfil_usuario ADD VALUE 'responsavel').

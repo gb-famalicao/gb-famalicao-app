@@ -1,0 +1,5 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260520000001_bloqueio_financeiro.sql
+-- (função verificar_bloqueio_financeiro baseada em data_vencimento, não no
+-- enum status='atrasado'). Confirmado ainda vigente em produção via
+-- pg_get_functiondef.

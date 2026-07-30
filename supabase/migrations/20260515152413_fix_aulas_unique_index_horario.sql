@@ -1,0 +1,5 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260502000001_aulas_index_horario.sql
+-- (índice único aulas_turma_data_horario_idx substitui aulas_turma_data_idx,
+-- permite múltiplas aulas no mesmo dia com horários diferentes).
+-- Confirmado ainda vigente em produção via pg_indexes.

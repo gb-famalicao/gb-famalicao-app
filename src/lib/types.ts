@@ -49,6 +49,7 @@ export interface Turma {
   categoria: CategoriaFaixa;
   professor_id: string | null;
   ativa: boolean;
+  apenas_experimental: boolean;
   criado_em: string;
   atualizado_em: string;
 }

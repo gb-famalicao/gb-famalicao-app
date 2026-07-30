@@ -1,0 +1,3 @@
+-- Registo de paridade de versões — não executar.
+-- Aplicada em produção; corresponde a 20260501000001_add_iban.sql
+-- (ALTER TABLE profiles ADD COLUMN iban text). Ver esse ficheiro para o SQL.
