@@ -27,8 +27,10 @@ export function EsqueciSenhaForm() {
       );
       if (!error) {
         setEnviado(true);
+      } else if (error.code === "over_email_send_rate_limit" || error.code === "over_request_rate_limit") {
+        setErro("Já pediste um link há pouco. Espera um minuto antes de tentar de novo.");
       } else {
-        setErro("Erro ao enviar email. Tenta novamente.");
+        setErro("Não foi possível enviar o email agora. Tenta novamente em instantes.");
       }
     } finally {
       setCarregando(false);

@@ -88,7 +88,13 @@ export async function agendarExperimental(formData: FormData): Promise<AgendarEx
     telefone,
   });
 
-  if (insertError) return { ok: false, erro: "Erro ao agendar. Tenta novamente." };
+  if (insertError) {
+    console.error("agendarExperimental: falha ao inserir agendamento", insertError);
+    return {
+      ok: false,
+      erro: "Não foi possível confirmar a marcação agora. Tenta novamente em instantes ou contacta-nos por WhatsApp.",
+    };
+  }
 
   revalidatePath("/aula-experimental");
   return { ok: true };

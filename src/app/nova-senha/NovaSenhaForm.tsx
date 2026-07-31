@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { atualizarSenha } from "./nova-senha-actions";
+import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 
 export function NovaSenhaForm() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export function NovaSenhaForm() {
   const [erro, setErro] = useState("");
   const [sucesso, setSucesso] = useState(false);
 
-  const senhaOk = senha.length >= 6;
+  const senhaOk = senhaValida(senha);
   const confirmacaoOk = senha === confirmar;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -31,8 +32,14 @@ export function NovaSenhaForm() {
       if (res.ok) {
         setSucesso(true);
         setTimeout(() => router.push("/perfil"), 2500);
+      } else if (res.codigo === "weak_password") {
+        setErro(`Senha fraca. Usa ${REGRA_SENHA_TEXTO}`);
+      } else if (res.codigo === "same_password") {
+        setErro("A nova senha tem de ser diferente da senha atual.");
+      } else if (res.codigo === "session_not_found" || res.codigo === "user_not_found") {
+        setErro("O link expirou ou já foi usado. Pede um novo em \"Esqueci a senha\".");
       } else {
-        setErro("Erro ao atualizar senha. O link pode ter expirado — solicita um novo.");
+        setErro("Não foi possível atualizar a senha agora. Tenta novamente em instantes.");
       }
     } finally {
       setCarregando(false);
@@ -59,7 +66,7 @@ export function NovaSenhaForm() {
           <Input
             id="senha"
             type={showSenha ? "text" : "password"}
-            placeholder="Mínimo 6 caracteres"
+            placeholder="Mín. 8 caracteres"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             required
@@ -76,6 +83,9 @@ export function NovaSenhaForm() {
             {showSenha ? <EyeOff size={16} /> : <Eye size={16} />}
           </button>
         </div>
+        {senha && !senhaOk && (
+          <p className="text-xs text-red-600">{REGRA_SENHA_TEXTO}</p>
+        )}
       </div>
 
       <div className="space-y-2">

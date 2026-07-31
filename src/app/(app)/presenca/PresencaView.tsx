@@ -129,13 +129,17 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
       const { data, error } = await supabase.rpc("gerar_qr_token", { p_aluno_ids: alunoIds });
 
       if (error) {
-        setErroMsg("Não foi possível gerar o QR Code. Tente novamente.");
+        setErroMsg("Não foi possível gerar o QR Code agora. Verifica a tua ligação e tenta novamente.");
         setEstado("erro");
         return;
       }
 
       if (!data?.token) {
-        setErroMsg("Não foi possível gerar o QR Code. Tente novamente.");
+        setErroMsg(
+          data?.mensagem === "IDs inválidos"
+            ? "Não foi possível gerar o QR para um dos selecionados. Atualiza a página (F5) e tenta novamente."
+            : data?.mensagem || "Não foi possível gerar o QR Code. Tenta novamente."
+        );
         setEstado("erro");
         return;
       }

@@ -8,6 +8,7 @@ import { labelCorFaixa } from "@/lib/utils";
 import { formatarTelefone, telefoneLimpo } from "@/lib/phone";
 import { verificarEmailExistente, concluirCadastro } from "./cadastro-actions";
 import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
+import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 
 // ─── Palette ────────────────────────────────────────────────
 const C = {
@@ -540,14 +541,6 @@ function StepWelcome({ onCriar, onLogin }: { onCriar: () => void; onLogin: () =>
 
 // ─── Step 1 — Email + senha ───────────────────────────────────
 
-// Regra tem de bater com a password policy configurada no Supabase Auth
-// (Settings → Auth → Password requirements): mín. 8 caracteres, com
-// maiúscula, minúscula e número. Se validar só localmente e a policy for
-// mais permissiva no servidor, sem problema — é apenas mais restritivo.
-function senhaValida(s: string): boolean {
-  return s.length >= 8 && /[a-z]/.test(s) && /[A-Z]/.test(s) && /[0-9]/.test(s);
-}
-
 function StepEmail({
   email,
   senha,
@@ -640,7 +633,7 @@ function StepEmail({
             }
           />
           <div style={{ fontSize: 12, color: senhaFraca ? C.red : C.ink3, marginTop: 4 }}>
-            8+ caracteres, com maiúscula, minúscula e número.
+            {REGRA_SENHA_TEXTO}
           </div>
         </Field>
 
@@ -1874,7 +1867,11 @@ export function CadastroForm() {
         type: "email",
       });
       if (error) {
-        setErro("Código incorreto ou expirado. Tenta novamente.");
+        setErro(
+          error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit"
+            ? "Demasiadas tentativas. Espera um minuto antes de tentar novamente."
+            : "Código incorreto ou expirado. Verifica o código no email ou pede um novo."
+        );
         return;
       }
       setPasso(3);
@@ -1888,7 +1885,15 @@ export function CadastroForm() {
     setLoading(true);
     try {
       const supabase = createClient();
-      await supabase.auth.resend({ type: "signup", email: email.trim().toLowerCase() });
+      const { error } = await supabase.auth.resend({ type: "signup", email: email.trim().toLowerCase() });
+      if (error) {
+        setErro(
+          error.code === "over_request_rate_limit" || error.code === "over_email_send_rate_limit"
+            ? "Aguarda um pouco antes de pedir outro código."
+            : "Não foi possível reenviar o código. Tenta novamente em instantes."
+        );
+        return;
+      }
       startCountdown();
     } finally {
       setLoading(false);

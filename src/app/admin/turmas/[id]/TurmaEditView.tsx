@@ -98,6 +98,7 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
 
   const [toggleSalvando, setToggleSalvando] = useState(false);
   const [toggleFeedback, setToggleFeedback] = useState<"ok" | "erro" | null>(null);
+  const [toggleErroMsg, setToggleErroMsg] = useState("");
 
   const [aulas, setAulas]           = useState(aulasProp);
   const [semanas, setSemanas]       = useState(4);
@@ -185,8 +186,9 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
       setToggleFeedback("ok");
       setTimeout(() => setToggleFeedback(null), 2500);
     } else {
+      setToggleErroMsg(result.erro || "Não foi possível atualizar a turma.");
       setToggleFeedback("erro");
-      setTimeout(() => setToggleFeedback(null), 3000);
+      setTimeout(() => setToggleFeedback(null), 4000);
     }
     setToggleSalvando(false);
   }
@@ -638,7 +640,7 @@ export function TurmaEditView({ turma: turmaProp, professores, aulas: aulasProp 
               <span className="text-xs font-medium text-green-600 flex items-center gap-1"><Check size={12} />Salvo</span>
             )}
             {toggleFeedback === "erro" && (
-              <span className="text-xs font-medium text-red-600">Erro</span>
+              <span className="text-xs font-medium text-red-600">{toggleErroMsg}</span>
             )}
             <button
               type="button"
