@@ -559,6 +559,14 @@ function StepWelcome({ onCriar, onLogin }: { onCriar: () => void; onLogin: () =>
 
 // ─── Step 1 — Email + senha ───────────────────────────────────
 
+// Regra tem de bater com a password policy configurada no Supabase Auth
+// (Settings → Auth → Password requirements): mín. 8 caracteres, com
+// maiúscula, minúscula e número. Se validar só localmente e a policy for
+// mais permissiva no servidor, sem problema — é apenas mais restritivo.
+function senhaValida(s: string): boolean {
+  return s.length >= 8 && /[a-z]/.test(s) && /[A-Z]/.test(s) && /[0-9]/.test(s);
+}
+
 function StepEmail({
   email,
   senha,
@@ -585,6 +593,7 @@ function StepEmail({
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirmar, setShowConfirmar] = useState(false);
   const senhasNaoCoincidem = confirmarSenha.length > 0 && senha !== confirmarSenha;
+  const senhaFraca = senha.length > 0 && !senhaValida(senha);
 
   return (
     <Shell>
@@ -632,7 +641,7 @@ function StepEmail({
         <Field label="Criar senha" focused={senha.length > 0}>
           <TextInput
             type={showPwd ? "text" : "password"}
-            placeholder="Mínimo 6 caracteres"
+            placeholder="Mín. 8 caracteres"
             value={senha}
             onChange={onSenha}
             autoComplete="new-password"
@@ -649,6 +658,9 @@ function StepEmail({
               </button>
             }
           />
+          <div style={{ fontSize: 12, color: senhaFraca ? C.red : C.ink3, marginTop: 4 }}>
+            8+ caracteres, com maiúscula, minúscula e número.
+          </div>
         </Field>
 
         <Field label="Confirmar senha" focused={confirmarSenha.length > 0}>
@@ -684,7 +696,7 @@ function StepEmail({
 
         <PrimaryBtn
           loading={loading}
-          disabled={!email || senha.length < 6 || senha !== confirmarSenha}
+          disabled={!email || !senhaValida(senha) || senha !== confirmarSenha}
           onClick={onSubmit}
           testId="btn-enviar-codigo"
         >
@@ -1824,7 +1836,7 @@ export function CadastroForm() {
 
   async function handleEnviarCodigo() {
     setErro("");
-    if (!email || senha.length < 6 || senha !== confirmarSenha) return;
+    if (!email || !senhaValida(senha) || senha !== confirmarSenha) return;
     setLoading(true);
     try {
       const emailNorm = email.trim().toLowerCase();
@@ -1851,7 +1863,11 @@ export function CadastroForm() {
         },
       });
       if (error) {
-        setErro("Erro ao enviar código. Tenta novamente.");
+        setErro(
+          error.code === "weak_password"
+            ? "Senha fraca. Usa 8+ caracteres, com maiúscula, minúscula e número."
+            : "Erro ao enviar código. Tenta novamente."
+        );
         return;
       }
       if (!data.user || data.user.identities?.length === 0) {
