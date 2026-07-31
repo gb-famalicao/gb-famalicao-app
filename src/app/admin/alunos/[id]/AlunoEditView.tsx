@@ -148,6 +148,7 @@ export function AlunoEditView({
   const [statusAluno, setStatusAluno] = useState<StatusAluno>(alunoProp.status);
   const [toggleSalvando, setToggleSalvando] = useState(false);
   const [toggleFeedback, setToggleFeedback] = useState<"ok" | "erro" | null>(null);
+  const [toggleErroMsg, setToggleErroMsg] = useState("");
 
   // ── Mensalidades ───────────────────────────────────────────────────────────
   const [mensalidades, setMensalidades] = useState(mensalidadesProp);
@@ -213,9 +214,10 @@ export function AlunoEditView({
       setAluno((p) => ({ ...p, status: novoStatus }));
       setToggleFeedback("ok");
       setTimeout(() => setToggleFeedback(null), 2500);
-    } catch {
+    } catch (err) {
+      setToggleErroMsg(err instanceof Error ? err.message : "Não foi possível atualizar o estado.");
       setToggleFeedback("erro");
-      setTimeout(() => setToggleFeedback(null), 3000);
+      setTimeout(() => setToggleFeedback(null), 4000);
     } finally {
       setToggleSalvando(false);
     }
@@ -333,9 +335,13 @@ export function AlunoEditView({
     if (!confirm("Eliminar esta graduação do histórico?")) return;
     try {
       const result = await excluirGraduacao(id, aluno.id);
-      if (result.ok) setGraduacoes((prev) => prev.filter((g) => g.id !== id));
-    } catch {
-      // silently ignore network errors — user can retry
+      if (result.ok) {
+        setGraduacoes((prev) => prev.filter((g) => g.id !== id));
+      } else {
+        alert(result.erro || "Não foi possível eliminar a graduação. Tenta novamente.");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erro de rede. Verifica a ligação e tenta novamente.");
     }
   }
 
@@ -616,7 +622,9 @@ export function AlunoEditView({
           </div>
           <div className="flex items-center gap-3 shrink-0">
             {toggleFeedback === "ok" && <span className="text-xs font-medium text-green-600 flex items-center gap-1"><Check size={12} />Salvo</span>}
-            {toggleFeedback === "erro" && <span className="text-xs font-medium text-red-600">Erro</span>}
+            {toggleFeedback === "erro" && (
+              <span className="text-xs font-medium text-red-600">{toggleErroMsg}</span>
+            )}
             <button
               type="button"
               role="switch"
