@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { formatarTelefone, telefoneLimpo } from "@/lib/phone";
+import { PhoneInput } from "@/components/PhoneInput";
 import { agendarExperimental } from "./actions";
 
 export interface SlotDisponivel {
@@ -53,7 +53,7 @@ export function AulaExperimentalForm({ slots }: Props) {
   const [nome, setNome] = useState("");
   const [nomeResponsavel, setNomeResponsavel] = useState("");
   const [nomeAluno, setNomeAluno] = useState("");
-  const [telefone, setTelefone] = useState("+351 ");
+  const [telefone, setTelefone] = useState("");
   const [aulaId, setAulaId] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
@@ -85,7 +85,7 @@ export function AulaExperimentalForm({ slots }: Props) {
 
   const podeSubmeter =
     !!aulaId &&
-    !!telefoneLimpo(telefone) &&
+    telefone.trim().length > 4 &&
     (tipo === "adulto" ? !!nome.trim() : tipo === "infantil" ? !!idade && !!nomeResponsavel.trim() && !!nomeAluno.trim() : false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -223,10 +223,10 @@ export function AulaExperimentalForm({ slots }: Props) {
       {tipo !== "" && (
         <div className="space-y-1.5">
           <Label htmlFor="telefone">Telemóvel (WhatsApp)</Label>
-          <Input
-            id="telefone" required type="tel" inputMode="numeric"
-            value={telefone}
-            onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
+          <PhoneInput
+            id="telefone"
+            value={telefone || undefined}
+            onChange={(v) => setTelefone(v ?? "")}
             disabled={carregando}
           />
         </div>

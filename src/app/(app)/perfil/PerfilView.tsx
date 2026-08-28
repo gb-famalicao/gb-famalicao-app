@@ -13,7 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { mascararTelefonePT, formatarTelefonePT, formatarMoeda, formatarMes, formatarData, labelCorFaixa } from "@/lib/utils";
+import { formatarMoeda, formatarMes, formatarData, labelCorFaixa } from "@/lib/utils";
+import { PhoneInput } from "@/components/PhoneInput";
+import { telefoneParaExibir, telefoneParaE164 } from "@/lib/phone";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type { Profile, Mensalidade, StatusMensalidade, HistoricoGraduacao, DependentePerfil, CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { DependenteModal } from "./DependenteModal";
@@ -184,7 +186,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
   const [salvoErro, setSalvoErro] = useState("");
   const [form, setForm] = useState({
     nome:      profileProp?.nome_completo ?? "",
-    telefone:  profileProp?.telefone ?? "",
+    telefone:  telefoneParaE164(profileProp?.telefone) ?? "",
     dataNasc:  profileProp?.data_nascimento ?? "",
     novoEmail: "",
   });
@@ -254,7 +256,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
   function iniciarEdicao() {
     setForm({
       nome:      profile?.nome_completo ?? "",
-      telefone:  profile?.telefone ?? "",
+      telefone:  telefoneParaE164(profile?.telefone) ?? "",
       dataNasc:  profile?.data_nascimento ?? "",
       novoEmail: "",
     });
@@ -721,12 +723,10 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
 
                 <div className="space-y-1.5">
                   <Label htmlFor="telefone">Telefone</Label>
-                  <Input
+                  <PhoneInput
                     id="telefone"
-                    type="tel"
-                    placeholder="+351 XXX XXX XXX"
-                    value={form.telefone}
-                    onChange={(e) => setForm((f) => ({ ...f, telefone: mascararTelefonePT(e.target.value) }))}
+                    value={form.telefone || undefined}
+                    onChange={(v) => setForm((f) => ({ ...f, telefone: v ?? "" }))}
                   />
                 </div>
 
@@ -800,7 +800,7 @@ export function PerfilView({ profile: profileProp, email, mensalidades, historic
                 <InfoRow icon={<User size={16} />} label="Nome completo" value={profile.nome_completo} />
                 <InfoRow icon={<Mail size={16} />} label="E-mail" value={email || "—"} />
                 {profile.telefone && (
-                  <InfoRow icon={<Phone size={16} />} label="Telefone" value={formatarTelefonePT(profile.telefone)} />
+                  <InfoRow icon={<Phone size={16} />} label="Telefone" value={telefoneParaExibir(profile.telefone)} />
                 )}
                 {profile.data_nascimento && (
                   <InfoRow

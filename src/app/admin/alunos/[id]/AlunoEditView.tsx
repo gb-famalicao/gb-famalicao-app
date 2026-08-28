@@ -14,8 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PresencasCalendario } from "@/components/PresencasCalendario";
 import {
-  mascararTelefonePT, formatarData, formatarMoeda, formatarMes, labelCorFaixa,
+  formatarData, formatarMoeda, formatarMes, labelCorFaixa,
 } from "@/lib/utils";
+import { PhoneInput } from "@/components/PhoneInput";
+import { telefoneParaE164 } from "@/lib/phone";
 import { getEffectiveStatus } from "@/lib/mensalidade-status";
 import type {
   Profile, CorFaixa, StatusAluno, CategoriaFaixa, PerfilUsuario,
@@ -133,7 +135,7 @@ export function AlunoEditView({
   const [salvoErro, setSalvoErro] = useState("");
   const [form, setForm] = useState({
     nome_completo:   aluno.nome_completo,
-    telefone:        aluno.telefone ?? "",
+    telefone:        telefoneParaE164(aluno.telefone) ?? "",
     data_nascimento: aluno.data_nascimento ?? "",
     iban:            aluno.iban ?? "",
     nif:             aluno.nif ?? "",
@@ -199,6 +201,8 @@ export function AlunoEditView({
   // ── Derived ────────────────────────────────────────────────────────────────
   const iniciais = aluno.nome_completo.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
   const ativo = statusAluno === "ativo";
+  const isResponsavel = form.perfil === "responsavel";
+  const numDependentes = dependentesDoAluno.length;
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -226,6 +230,9 @@ export function AlunoEditView({
   async function handleSalvar() {
     if (!form.nome_completo.trim()) { setSalvoErro("Nome não pode estar vazio."); return; }
     setSalvando(true); setSalvoErro(""); setSalvoOk(false);
+    const salvandoResponsavel = form.perfil === "responsavel";
+    const faixaFinal: CorFaixa | null = salvandoResponsavel ? null : (form.faixa as CorFaixa);
+    const grausFinal = salvandoResponsavel ? 0 : Number(form.graus);
     try {
       const supabase = createClient();
       const { error } = await supabase.from("profiles").update({
@@ -235,8 +242,8 @@ export function AlunoEditView({
         iban:            form.iban.trim() || null,
         nif:             form.nif.trim() || null,
         aulas_manual:    Number(form.aulas_manual),
-        faixa:           form.faixa as CorFaixa,
-        graus:           Number(form.graus),
+        faixa:           faixaFinal,
+        graus:           grausFinal,
         categoria:       form.categoria as CategoriaFaixa,
         status:          statusAluno,
         perfil:          form.perfil as PerfilUsuario,
@@ -250,8 +257,8 @@ export function AlunoEditView({
         iban:            form.iban.trim() || null,
         nif:             form.nif.trim() || null,
         aulas_manual:    Number(form.aulas_manual),
-        faixa:           form.faixa as CorFaixa,
-        graus:           Number(form.graus),
+        faixa:           faixaFinal,
+        graus:           grausFinal,
         categoria:       form.categoria as CategoriaFaixa,
         status:          statusAluno,
         perfil:          form.perfil as PerfilUsuario,
@@ -600,10 +607,14 @@ export function AlunoEditView({
 
         <div className="min-w-0 flex-1">
           <p className="font-bold text-gray-900 text-lg leading-tight">{aluno.nome_completo}</p>
-          {aluno.faixa && (
-            <div className="mt-2">
-              <FaixaBJJ faixa={aluno.faixa} graus={aluno.graus} categoria={aluno.categoria} tamanho="sm" showLabel />
-            </div>
+          {isResponsavel ? (
+            <p className="text-xs text-gray-500 mt-1 font-medium">Responsável</p>
+          ) : (
+            aluno.faixa && (
+              <div className="mt-2">
+                <FaixaBJJ faixa={aluno.faixa} graus={aluno.graus} categoria={aluno.categoria} tamanho="sm" showLabel />
+              </div>
+            )
           )}
           {uploadFotoErro && (
             <p className="text-xs text-red-500 mt-1">{uploadFotoErro}</p>
@@ -672,7 +683,7 @@ export function AlunoEditView({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="telefone">Telefone</Label>
-            <Input id="telefone" type="tel" placeholder="+351 XXX XXX XXX" value={form.telefone} onChange={(e) => setForm((f) => ({ ...f, telefone: mascararTelefonePT(e.target.value) }))} />
+            <PhoneInput id="telefone" value={form.telefone || undefined} onChange={(v) => setForm((f) => ({ ...f, telefone: v ?? "" }))} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="data_nascimento">Data de nascimento</Label>
@@ -699,35 +710,45 @@ export function AlunoEditView({
             />
             <p className="text-xs text-gray-400">Total exibido ao aluno = este valor + presenças registadas no app</p>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="faixa_edit">Faixa</Label>
-            <select id="faixa_edit" title="Faixa" value={form.faixa} onChange={(e) => setForm((f) => ({ ...f, faixa: e.target.value as CorFaixa }))} className={selectClass}>
-              {[...ADULT_BELTS, ...KIDS_BELTS.filter((b) => !ADULT_BELTS.includes(b))].map((c) => (
-                <option key={c} value={c}>{labelCorFaixa(c)}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="graus_edit">Graus</Label>
-            <select id="graus_edit" title="Graus" value={form.graus} onChange={(e) => setForm((f) => ({ ...f, graus: e.target.value }))} className={selectClass}>
-              {[0,1,2,3,4].map((g) => <option key={g} value={g}>{g === 0 ? "Sem graus" : `${g} grau${g > 1 ? "s" : ""}`}</option>)}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="categoria_edit">Categoria</Label>
-            <select id="categoria_edit" title="Categoria" value={form.categoria} onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value as CategoriaFaixa }))} className={selectClass}>
-              <option value="adulto">Adulto</option>
-              <option value="infantil">Infantil</option>
-              <option value="adulto_infantil">Adulto &amp; Infantil</option>
-            </select>
-          </div>
+          {!isResponsavel && (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="faixa_edit">Faixa</Label>
+                <select id="faixa_edit" title="Faixa" value={form.faixa} onChange={(e) => setForm((f) => ({ ...f, faixa: e.target.value as CorFaixa }))} className={selectClass}>
+                  {[...ADULT_BELTS, ...KIDS_BELTS.filter((b) => !ADULT_BELTS.includes(b))].map((c) => (
+                    <option key={c} value={c}>{labelCorFaixa(c)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="graus_edit">Graus</Label>
+                <select id="graus_edit" title="Graus" value={form.graus} onChange={(e) => setForm((f) => ({ ...f, graus: e.target.value }))} className={selectClass}>
+                  {[0,1,2,3,4].map((g) => <option key={g} value={g}>{g === 0 ? "Sem graus" : `${g} grau${g > 1 ? "s" : ""}`}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="categoria_edit">Categoria</Label>
+                <select id="categoria_edit" title="Categoria" value={form.categoria} onChange={(e) => setForm((f) => ({ ...f, categoria: e.target.value as CategoriaFaixa }))} className={selectClass}>
+                  <option value="adulto">Adulto</option>
+                  <option value="infantil">Infantil</option>
+                  <option value="adulto_infantil">Adulto &amp; Infantil</option>
+                </select>
+              </div>
+            </>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="perfil_edit">Perfil</Label>
             <select id="perfil_edit" title="Perfil" value={form.perfil} onChange={(e) => setForm((f) => ({ ...f, perfil: e.target.value as PerfilUsuario }))} className={selectClass}>
               <option value="aluno">Aluno</option>
+              <option value="responsavel">Responsável</option>
               <option value="professor">Professor</option>
               <option value="admin">Administrador</option>
             </select>
+            {form.perfil === "aluno" && numDependentes > 0 && (
+              <p className="text-xs text-gb-blue mt-1">
+                Também é responsável por {numDependentes} dependente{numDependentes > 1 ? "s" : ""}.
+              </p>
+            )}
           </div>
         </div>
 
@@ -811,6 +832,7 @@ export function AlunoEditView({
       {/* ══════════════════════════════════════════════════════════════════════
           ── Secção Graduações ──
       ══════════════════════════════════════════════════════════════════════ */}
+      {!isResponsavel && (
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between px-1">
@@ -1094,8 +1116,10 @@ export function AlunoEditView({
           </div>
         )}
       </div>
+      )}
 
       {/* ── Mensalidades ── */}
+      {!isResponsavel && (
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h2 className="font-bold text-gray-900 flex items-center gap-2">
@@ -1309,8 +1333,10 @@ export function AlunoEditView({
           )}
         </div>
       </div>
+      )}
 
       {/* ── Histórico de presenças ── */}
+      {!isResponsavel && (
       <div className="space-y-3">
         <div className="flex items-center justify-between px-1">
           <h2 className="font-bold text-gray-900 flex items-center gap-2">
@@ -1389,6 +1415,7 @@ export function AlunoEditView({
 
         <PresencasCalendario presencas={presencas} onExcluirPresenca={handleExcluirPresenca} />
       </div>
+      )}
     </div>
   );
 }

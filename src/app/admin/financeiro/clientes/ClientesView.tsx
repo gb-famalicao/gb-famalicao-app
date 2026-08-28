@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, UserCheck, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/PhoneInput";
 import { criarCliente, editarCliente, apagarCliente } from "./actions";
 import type { Fornecedor } from "@/lib/types";
 
@@ -177,7 +178,7 @@ export function ClientesView({ clientes }: Props) {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-gray-700">Telefone</label>
-                    <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="+351 …" className="rounded-xl" disabled={submitting} />
+                    <PhoneInput value={telefone || undefined} onChange={(v) => setTelefone(v ?? "")} disabled={submitting} />
                   </div>
                 </div>
                 <div className="space-y-1.5">

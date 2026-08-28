@@ -36,6 +36,30 @@ body {
   top: 24px;
 }
 
+/* Country picker (react-phone-number-input) — match Input look */
+.gb-phone-input .PhoneInput {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.gb-phone-input .PhoneInputCountry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 2.75rem;
+  padding: 0 0.6rem;
+  border: 1px solid rgb(209 213 219);
+  background: white;
+  border-radius: 0.5rem;
+}
+.gb-phone-input .PhoneInputCountrySelectArrow {
+  color: rgb(107 114 128);
+  opacity: 1;
+}
+.gb-phone-input .PhoneInputInput:focus-visible {
+  outline: none;
+}
+
 @layer base {
   .theme {
     --font-heading: var(--font-sans);
