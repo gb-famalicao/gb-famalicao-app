@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth-guard";
+import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
 
@@ -81,7 +82,7 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
     }
 
     if (!email || !senha) return { ok: false, erro: "Email e senha são obrigatórios." };
-    if (senha.length < 6) return { ok: false, erro: "A senha deve ter ao menos 6 caracteres." };
+    if (!senhaValida(senha)) return { ok: false, erro: `Senha fraca. ${REGRA_SENHA_TEXTO}` };
 
     const { data: authData, error: authErr } = await admin.auth.admin.createUser({
       email,
