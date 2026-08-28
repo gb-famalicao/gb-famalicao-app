@@ -177,9 +177,17 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
     }
   }
 
+  const podeTreinar = profile.perfil !== "responsavel";
+
   function handleGerarQR() {
+    if (!podeTreinar && dependentes.length === 0) {
+      setErroMsg("Sem dependentes vinculados para gerar QR Code.");
+      setEstado("erro");
+      return;
+    }
+
     if (dependentes.length > 0) {
-      setSelecionados([profile.id, ...dependentes.map((d) => d.id)]);
+      setSelecionados(podeTreinar ? [profile.id, ...dependentes.map((d) => d.id)] : dependentes.map((d) => d.id));
       setModalAberto(true);
     } else {
       gerarQR([profile.id]);
@@ -378,31 +386,33 @@ export function PresencaView({ profile, dependentes }: PresencaViewProps) {
             <p className="text-sm text-gray-400 mb-5">Selecione quem vai treinar hoje</p>
 
             <div className="space-y-3 mb-6">
-              <label className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={selecionados.includes(profile.id)}
-                  onChange={() => toggleSelecionado(profile.id)}
-                  className="h-5 w-5 rounded border-gray-300 text-gb-blue focus:ring-gb-blue/30 shrink-0"
-                />
-                <div className="w-10 h-10 rounded-full bg-gb-blue flex items-center justify-center overflow-hidden shrink-0">
-                  {profile.foto_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={profile.foto_url} alt={profile.nome_completo} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-white font-bold text-sm">{iniciais(profile.nome_completo)}</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm truncate">{profile.nome_completo}</p>
-                  <p className="text-xs text-gray-400">Eu</p>
-                </div>
-                {selecionados.includes(profile.id) && (
-                  <div className="ml-auto w-5 h-5 rounded-full bg-gb-blue flex items-center justify-center shrink-0">
-                    <Check size={12} className="text-white" />
+              {podeTreinar && (
+                <label className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selecionados.includes(profile.id)}
+                    onChange={() => toggleSelecionado(profile.id)}
+                    className="h-5 w-5 rounded border-gray-300 text-gb-blue focus:ring-gb-blue/30 shrink-0"
+                  />
+                  <div className="w-10 h-10 rounded-full bg-gb-blue flex items-center justify-center overflow-hidden shrink-0">
+                    {profile.foto_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={profile.foto_url} alt={profile.nome_completo} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-white font-bold text-sm">{iniciais(profile.nome_completo)}</span>
+                    )}
                   </div>
-                )}
-              </label>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{profile.nome_completo}</p>
+                    <p className="text-xs text-gray-400">Eu</p>
+                  </div>
+                  {selecionados.includes(profile.id) && (
+                    <div className="ml-auto w-5 h-5 rounded-full bg-gb-blue flex items-center justify-center shrink-0">
+                      <Check size={12} className="text-white" />
+                    </div>
+                  )}
+                </label>
+              )}
 
               {dependentes.map((dep) => (
                 <label key={dep.id} className="flex items-center gap-3 p-3 rounded-2xl border border-gray-100 cursor-pointer hover:bg-gray-50 active:bg-gray-100 transition-colors">
