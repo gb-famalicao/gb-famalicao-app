@@ -6,7 +6,8 @@ import { Eye, EyeOff, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { mascararTelefonePT, labelCorFaixa } from "@/lib/utils";
+import { labelCorFaixa } from "@/lib/utils";
+import { PhoneInput } from "@/components/PhoneInput";
 import { criarAluno } from "./actions";
 import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
 
@@ -185,11 +186,10 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
           {!(semLogin && form.responsavel_id) && (
             <div className="space-y-1.5">
               <Label htmlFor="telefone">Telefone</Label>
-              <Input
-                id="telefone" type="tel"
-                placeholder="+351 XXX XXX XXX"
-                value={form.telefone}
-                onChange={(e) => set("telefone", mascararTelefonePT(e.target.value))}
+              <PhoneInput
+                id="telefone"
+                value={form.telefone || undefined}
+                onChange={(v) => set("telefone", v ?? "")}
                 disabled={carregando}
               />
             </div>
@@ -233,49 +233,55 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
         </div>
       </div>
 
-      {/* Graduação */}
+      {/* Graduação & Perfil */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
-        <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Graduação & Perfil</h2>
+        <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">
+          {form.perfil === "responsavel" ? "Perfil" : "Graduação & Perfil"}
+        </h2>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="faixa">Faixa</Label>
-            <select
-              id="faixa" title="Faixa" value={form.faixa}
-              onChange={(e) => set("faixa", e.target.value)}
-              className={selectClass} disabled={carregando}
-            >
-              {COR_FAIXA_OPTIONS.map((c) => (
-                <option key={c} value={c}>{labelCorFaixa(c)}</option>
-              ))}
-            </select>
-          </div>
+          {form.perfil !== "responsavel" && (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="faixa">Faixa</Label>
+                <select
+                  id="faixa" title="Faixa" value={form.faixa}
+                  onChange={(e) => set("faixa", e.target.value)}
+                  className={selectClass} disabled={carregando}
+                >
+                  {COR_FAIXA_OPTIONS.map((c) => (
+                    <option key={c} value={c}>{labelCorFaixa(c)}</option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="graus">Graus</Label>
-            <select
-              id="graus" title="Graus" value={form.graus}
-              onChange={(e) => set("graus", e.target.value)}
-              className={selectClass} disabled={carregando}
-            >
-              {[0, 1, 2, 3, 4].map((g) => (
-                <option key={g} value={g}>{g === 0 ? "Sem" : g}</option>
-              ))}
-            </select>
-          </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="graus">Graus</Label>
+                <select
+                  id="graus" title="Graus" value={form.graus}
+                  onChange={(e) => set("graus", e.target.value)}
+                  className={selectClass} disabled={carregando}
+                >
+                  {[0, 1, 2, 3, 4].map((g) => (
+                    <option key={g} value={g}>{g === 0 ? "Sem" : g}</option>
+                  ))}
+                </select>
+              </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="categoria">Categoria</Label>
-            <select
-              id="categoria" title="Categoria" value={form.categoria}
-              onChange={(e) => set("categoria", e.target.value)}
-              className={selectClass} disabled={carregando}
-            >
-              <option value="adulto">Adulto</option>
-              <option value="infantil">Infantil</option>
-              <option value="adulto_infantil">Adulto &amp; Infantil</option>
-            </select>
-          </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="categoria">Categoria</Label>
+                <select
+                  id="categoria" title="Categoria" value={form.categoria}
+                  onChange={(e) => set("categoria", e.target.value)}
+                  className={selectClass} disabled={carregando}
+                >
+                  <option value="adulto">Adulto</option>
+                  <option value="infantil">Infantil</option>
+                  <option value="adulto_infantil">Adulto &amp; Infantil</option>
+                </select>
+              </div>
+            </>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="perfil">Perfil</Label>
@@ -285,6 +291,7 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
               className={selectClass} disabled={carregando}
             >
               <option value="aluno">Aluno</option>
+              <option value="responsavel">Responsável</option>
               <option value="professor">Professor</option>
               <option value="admin">Admin</option>
             </select>
@@ -293,6 +300,7 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
       </div>
 
       {/* Mensalidade */}
+      {form.perfil !== "responsavel" && (
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
         <h2 className="font-bold text-sm uppercase tracking-wide text-gb-blue">Mensalidade</h2>
 
@@ -337,6 +345,7 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
           </div>
         </div>
       </div>
+      )}
 
       {erro && (
         <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">

@@ -21,14 +21,15 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
   const nomeCompleto        = (formData.get("nome_completo") as string).trim();
   const telefone            = (formData.get("telefone") as string | null)?.trim() || null;
   const dataNasc            = (formData.get("data_nascimento") as string | null) || null;
-  const faixa               = (formData.get("faixa") as string) || "branca";
-  const graus               = Number(formData.get("graus") ?? 0);
-  const categoria           = (formData.get("categoria") as string) || "adulto";
   const perfil              = (formData.get("perfil") as string) || "aluno";
+  const isResponsavel       = perfil === "responsavel";
+  const faixa               = isResponsavel ? null : ((formData.get("faixa") as string) || "branca");
+  const graus               = isResponsavel ? 0 : Number(formData.get("graus") ?? 0);
+  const categoria           = (formData.get("categoria") as string) || "adulto";
   const iban                = (formData.get("iban") as string | null)?.trim() || null;
   const nif                 = (formData.get("nif") as string | null)?.trim() || null;
-  const valorMensalidade    = (formData.get("valor_mensalidade") as string | null)?.trim() || null;
-  const primeiroVencimento  = (formData.get("primeiro_vencimento") as string | null)?.trim() || null;
+  const valorMensalidade    = isResponsavel ? null : ((formData.get("valor_mensalidade") as string | null)?.trim() || null);
+  const primeiroVencimento  = isResponsavel ? null : ((formData.get("primeiro_vencimento") as string | null)?.trim() || null);
 
   if (!nomeCompleto) return { ok: false, erro: "Nome é obrigatório." };
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Building2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/PhoneInput";
 import { criarFornecedor, editarFornecedor, apagarFornecedor } from "./actions";
 import type { Fornecedor, TipoFornecedor } from "@/lib/types";
 
@@ -208,7 +209,7 @@ export function FornecedoresView({ fornecedores }: Props) {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-gray-700">Telefone</label>
-                    <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="+351 …" className="rounded-xl" disabled={submitting} />
+                    <PhoneInput value={telefone || undefined} onChange={(v) => setTelefone(v ?? "")} disabled={submitting} />
                   </div>
                 </div>
                 <div className="space-y-1.5">

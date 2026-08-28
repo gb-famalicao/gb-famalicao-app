@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { labelCorFaixa } from "@/lib/utils";
-import { formatarTelefone, telefoneLimpo } from "@/lib/phone";
+import { PhoneInput } from "@/components/PhoneInput";
 import { verificarEmailExistente, concluirCadastro } from "./cadastro-actions";
 import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
 import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
@@ -1280,14 +1280,10 @@ function StepDados({
         </Field>
 
         <Field label="Telemóvel">
-          <TextInput
-            type="tel"
-            placeholder="+351 939 992 840"
-            value={telefone}
-            onChange={(v) => onTelefone(formatarTelefone(v))}
-            autoComplete="tel"
+          <PhoneInput
+            value={telefone || undefined}
+            onChange={(v) => onTelefone(v ?? "")}
             disabled={loading}
-            inputMode="tel"
           />
         </Field>
 
@@ -1757,7 +1753,7 @@ export function CadastroForm() {
   // Profile state
   const [tipoUsuario, setTipoUsuario] = useState<TipoUsuario>("aluno");
   const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("+351 ");
+  const [telefone, setTelefone] = useState("");
   const [dataNasc, setDataNasc] = useState("");
   const [contactoEmergencia, setContactoEmergencia] = useState("");
   const [categoria, setCategoria] = useState<CategoriaFaixa>("adulto");
@@ -1913,7 +1909,7 @@ export function CadastroForm() {
 
     setLoading(true);
     try {
-      const tel = telefoneLimpo(telefone);
+      const tel = telefone.trim() || null;
       const dataNascISO = dataParaISO(dataNasc);
 
       const result = await concluirCadastro({
