@@ -101,7 +101,8 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
             checked={semLogin}
             onChange={(e) => {
               setSemLogin(e.target.checked);
-              if (!e.target.checked) set("responsavel_id", "");
+              if (e.target.checked) set("perfil", "aluno");
+              else set("responsavel_id", "");
             }}
             disabled={carregando}
             className="mt-0.5 h-4 w-4 rounded border-gray-300 text-gb-blue focus:ring-gb-blue/30"
@@ -134,7 +135,8 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
         )}
       </div>
 
-      {/* Perfil — segunda decisão do form */}
+      {/* Perfil — segunda decisão do form; oculto quando dependente sem login (fica sempre aluno) */}
+      {!semLogin && (
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
         <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Perfil</h2>
         <div className="space-y-1.5">
@@ -151,6 +153,7 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
           </select>
         </div>
       </div>
+      )}
 
       {/* Dados de Acesso — oculto quando sem_login */}
       {!semLogin && (
