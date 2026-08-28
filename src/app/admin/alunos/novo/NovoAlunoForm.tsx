@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { labelCorFaixa } from "@/lib/utils";
 import { PhoneInput } from "@/components/PhoneInput";
+import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 import { criarAluno } from "./actions";
 import type { CorFaixa, CategoriaFaixa } from "@/lib/types";
 
@@ -51,9 +52,17 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  const senhaFraca = form.senha.length > 0 && !senhaValida(form.senha);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
+
+    if (!semLogin && !senhaValida(form.senha)) {
+      setErro(`Senha fraca. ${REGRA_SENHA_TEXTO}`);
+      return;
+    }
+
     setCarregando(true);
 
     const fd = new FormData();
@@ -125,10 +134,28 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
         )}
       </div>
 
-      {/* Credenciais — oculto quando sem_login */}
+      {/* Perfil — segunda decisão do form */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+        <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Perfil</h2>
+        <div className="space-y-1.5">
+          <Label htmlFor="perfil">Tipo de cadastro</Label>
+          <select
+            id="perfil" title="Tipo de cadastro" value={form.perfil}
+            onChange={(e) => set("perfil", e.target.value)}
+            className={selectClass} disabled={carregando}
+          >
+            <option value="aluno">Aluno</option>
+            <option value="responsavel">Responsável</option>
+            <option value="professor">Professor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Dados de Acesso — oculto quando sem_login */}
       {!semLogin && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
-          <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Acesso</h2>
+          <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Dados de Acesso</h2>
 
           <div className="space-y-1.5">
             <Label htmlFor="email">Email *</Label>
@@ -147,8 +174,8 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
               <Input
                 id="senha"
                 type={mostrarSenha ? "text" : "password"}
-                required={!semLogin} minLength={6}
-                placeholder="Mínimo 6 caracteres"
+                required={!semLogin} minLength={8}
+                placeholder="Mínimo 8 caracteres"
                 value={form.senha}
                 onChange={(e) => set("senha", e.target.value)}
                 disabled={carregando}
@@ -163,6 +190,9 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
                 {mostrarSenha ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            <p className={`text-xs mt-1 ${senhaFraca ? "text-red-600" : "text-gray-400"}`}>
+              {REGRA_SENHA_TEXTO}
+            </p>
           </div>
         </div>
       )}
@@ -233,71 +263,53 @@ export function NovoAlunoForm({ alunosComLogin }: Props) {
         </div>
       </div>
 
-      {/* Graduação & Perfil */}
+      {/* Graduação */}
+      {form.perfil !== "responsavel" && (
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
-        <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">
-          {form.perfil === "responsavel" ? "Perfil" : "Graduação & Perfil"}
-        </h2>
+        <h2 className="font-bold text-gray-900 text-sm uppercase tracking-wide text-gb-blue">Graduação</h2>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {form.perfil !== "responsavel" && (
-            <>
-              <div className="space-y-1.5">
-                <Label htmlFor="faixa">Faixa</Label>
-                <select
-                  id="faixa" title="Faixa" value={form.faixa}
-                  onChange={(e) => set("faixa", e.target.value)}
-                  className={selectClass} disabled={carregando}
-                >
-                  {COR_FAIXA_OPTIONS.map((c) => (
-                    <option key={c} value={c}>{labelCorFaixa(c)}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="graus">Graus</Label>
-                <select
-                  id="graus" title="Graus" value={form.graus}
-                  onChange={(e) => set("graus", e.target.value)}
-                  className={selectClass} disabled={carregando}
-                >
-                  {[0, 1, 2, 3, 4].map((g) => (
-                    <option key={g} value={g}>{g === 0 ? "Sem" : g}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="categoria">Categoria</Label>
-                <select
-                  id="categoria" title="Categoria" value={form.categoria}
-                  onChange={(e) => set("categoria", e.target.value)}
-                  className={selectClass} disabled={carregando}
-                >
-                  <option value="adulto">Adulto</option>
-                  <option value="infantil">Infantil</option>
-                  <option value="adulto_infantil">Adulto &amp; Infantil</option>
-                </select>
-              </div>
-            </>
-          )}
-
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="perfil">Perfil</Label>
+            <Label htmlFor="faixa">Faixa</Label>
             <select
-              id="perfil" title="Perfil" value={form.perfil}
-              onChange={(e) => set("perfil", e.target.value)}
+              id="faixa" title="Faixa" value={form.faixa}
+              onChange={(e) => set("faixa", e.target.value)}
               className={selectClass} disabled={carregando}
             >
-              <option value="aluno">Aluno</option>
-              <option value="responsavel">Responsável</option>
-              <option value="professor">Professor</option>
-              <option value="admin">Admin</option>
+              {COR_FAIXA_OPTIONS.map((c) => (
+                <option key={c} value={c}>{labelCorFaixa(c)}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="graus">Graus</Label>
+            <select
+              id="graus" title="Graus" value={form.graus}
+              onChange={(e) => set("graus", e.target.value)}
+              className={selectClass} disabled={carregando}
+            >
+              {[0, 1, 2, 3, 4].map((g) => (
+                <option key={g} value={g}>{g === 0 ? "Sem" : g}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="categoria">Categoria</Label>
+            <select
+              id="categoria" title="Categoria" value={form.categoria}
+              onChange={(e) => set("categoria", e.target.value)}
+              className={selectClass} disabled={carregando}
+            >
+              <option value="adulto">Adulto</option>
+              <option value="infantil">Infantil</option>
+              <option value="adulto_infantil">Adulto &amp; Infantil</option>
             </select>
           </div>
         </div>
       </div>
+      )}
 
       {/* Mensalidade */}
       {form.perfil !== "responsavel" && (
