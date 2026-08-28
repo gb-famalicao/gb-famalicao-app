@@ -164,6 +164,7 @@ interface Props {
   userId: string;
   nomeCompleto: string;
   fotoUrl: string | null;
+  podeTreinar: boolean;
   dependentes: DependenteOpcao[];
   bloqueadosPorFinanceiro: string[];
   reservantesPorAula: Record<string, ReservanteDaAula[]>;
@@ -176,6 +177,7 @@ export function AulasView({
   userId,
   nomeCompleto,
   fotoUrl,
+  podeTreinar,
   dependentes,
   bloqueadosPorFinanceiro,
   reservantesPorAula: reservantesProp,
@@ -184,7 +186,7 @@ export function AulasView({
   const [aulas, setAulas] = useState(aulasProp);
   const [reservasPorAluno, setReservasPorAluno] = useState(reservasProp);
   const [reservantesPorAula, setReservantesPorAula] = useState(reservantesProp);
-  const [selecionadoId, setSelecionadoId] = useState(userId);
+  const [selecionadoId, setSelecionadoId] = useState(podeTreinar ? userId : (dependentes[0]?.id ?? userId));
   const [acao, setAcao] = useState<string | null>(null);
   const [erro, setErro] = useState("");
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
@@ -330,18 +332,20 @@ export function AulasView({
 
         {dependentes.length > 0 && (
           <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
-            <button
-              type="button"
-              onClick={() => handleSelecionado(userId)}
-              className={cn(
-                "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
-                selecionadoId === userId
-                  ? "bg-white text-gb-blue"
-                  : "bg-white/10 text-white/70 hover:bg-white/20",
-              )}
-            >
-              Eu
-            </button>
+            {podeTreinar && (
+              <button
+                type="button"
+                onClick={() => handleSelecionado(userId)}
+                className={cn(
+                  "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                  selecionadoId === userId
+                    ? "bg-white text-gb-blue"
+                    : "bg-white/10 text-white/70 hover:bg-white/20",
+                )}
+              >
+                Eu
+              </button>
+            )}
             {dependentes.map((d) => (
               <button
                 key={d.id}

@@ -27,7 +27,7 @@ export default async function AulasPage() {
   const admin = createAdminClient();
 
   const [profileRes, dependentesRes] = await Promise.all([
-    admin.from("profiles").select("categoria, nome_completo, foto_url").eq("id", user.id).single(),
+    admin.from("profiles").select("categoria, nome_completo, foto_url, perfil").eq("id", user.id).single(),
     admin
       .from("dependentes")
       .select("dependente:profiles!dependentes_dependente_id_fkey(id, nome_completo, categoria, foto_url)")
@@ -37,6 +37,7 @@ export default async function AulasPage() {
   const categoriaAluno: CategoriaFaixa = (profileRes.data?.categoria as CategoriaFaixa) ?? "adulto";
   const nomeCompleto: string = profileRes.data?.nome_completo ?? "";
   const fotoUrl: string | null = profileRes.data?.foto_url ?? null;
+  const podeTreinar: boolean = profileRes.data?.perfil !== "responsavel";
 
   const dependentes: DependenteOpcao[] = (
     (dependentesRes.data ?? []) as unknown as Array<{ dependente: { id: string; nome_completo: string; categoria: string; foto_url: string | null } | null }>
@@ -124,6 +125,7 @@ export default async function AulasPage() {
       userId={user.id}
       nomeCompleto={nomeCompleto}
       fotoUrl={fotoUrl}
+      podeTreinar={podeTreinar}
       dependentes={dependentes}
       bloqueadosPorFinanceiro={bloqueadosPorFinanceiro}
       reservantesPorAula={reservantesPorAula}
