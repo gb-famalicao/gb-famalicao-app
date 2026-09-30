@@ -12,17 +12,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function TabletLoginForm() {
+export function TabletLoginForm({ erroInicial = "" }: { erroInicial?: string }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
-  const [erro, setErro] = useState("");
+  const [erro, setErro] = useState(erroInicial);
 
   useEffect(() => {
+    if (erroInicial) return;
     const anterior = consumirErroLogin();
     if (anterior) setErro(anterior);
-  }, []);
+  }, [erroInicial]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,13 +51,23 @@ export function TabletLoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form
+      action="/api/auth/login"
+      method="post"
+      onSubmit={handleSubmit}
+      className="space-y-5"
+    >
+      {/* Fallback sem JavaScript: o Route Handler responde com redirect */}
+      <input type="hidden" name="perfilEsperado" value="tablet" />
+      <input type="hidden" name="destino" value="/tablet" />
+
       <div className="space-y-2">
         <Label htmlFor="email" className="text-white/80">
           Email
         </Label>
         <Input
           id="email"
+          name="email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -75,6 +86,7 @@ export function TabletLoginForm() {
         <div className="relative">
           <Input
             id="senha"
+            name="senha"
             type={mostrarSenha ? "text" : "password"}
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
