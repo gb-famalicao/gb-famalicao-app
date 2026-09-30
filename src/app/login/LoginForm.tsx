@@ -2,15 +2,19 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { login } from "./auth-actions";
+import {
+  autenticar,
+  mensagemErroLogin,
+  guardarErroLogin,
+  consumirErroLogin,
+} from "@/lib/login-client";
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -21,7 +25,11 @@ export function LoginForm() {
     const erroParam = searchParams.get("erro");
     if (erroParam === "confirmacao") {
       setErro("Link inválido ou expirado. Tenta iniciar sessão ou solicita um novo link.");
+      return;
     }
+    // Erro guardado antes de uma navegação/recarregamento anterior
+    const anterior = consumirErroLogin();
+    if (anterior) setErro(anterior);
   }, [searchParams]);
 
   async function handleSubmit(e: React.SyntheticEvent) {
@@ -29,16 +37,22 @@ export function LoginForm() {
     setErro("");
     setCarregando(true);
 
-    const res = await login(email, senha);
+    try {
+      const res = await autenticar(email, senha);
 
-    if (res.ok) {
-      router.push("/perfil");
-    } else {
-      if (res.tipoErro === "nao_confirmado") {
-        setErro("Email ainda não confirmado. Verifica a tua caixa de entrada e confirma o registo.");
-      } else {
-        setErro("Email ou senha incorretos.");
+      if (!res.ok) {
+        setErro(mensagemErroLogin(res.tipoErro));
+        return;
       }
+
+      // Navegação dura: garante que o browser reenvia os cookies recém-criados
+      // antes do middleware decidir. router.push() não servia em Safari antigo.
+      window.location.assign("/perfil");
+    } catch (e) {
+      const mensagem = e instanceof Error ? e.message : "Erro inesperado ao entrar.";
+      setErro(mensagem);
+      guardarErroLogin(mensagem);
+    } finally {
       setCarregando(false);
     }
   }

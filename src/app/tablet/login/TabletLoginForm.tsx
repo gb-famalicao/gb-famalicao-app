@@ -1,20 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Loader2, Eye, EyeOff } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import {
+  autenticar,
+  mensagemErroLogin,
+  guardarErroLogin,
+  consumirErroLogin,
+} from "@/lib/login-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function TabletLoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    const anterior = consumirErroLogin();
+    if (anterior) setErro(anterior);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,31 +30,20 @@ export function TabletLoginForm() {
     setCarregando(true);
 
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: senha,
-      });
+      const res = await autenticar(email.trim(), senha, "tablet");
 
-      if (error || !data.user) {
-        setErro("Email ou senha incorretos.");
+      if (!res.ok) {
+        setErro(mensagemErroLogin(res.tipoErro));
         return;
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("perfil")
-        .eq("id", data.user.id)
-        .single();
-
-      if (profile?.perfil !== "tablet") {
-        await supabase.auth.signOut();
-        setErro("Esta conta não tem permissão de acesso ao tablet.");
-        return;
-      }
-
-      router.refresh();
-      router.push("/tablet");
+      // Navegação dura: garante que o browser reenvia os cookies recém-criados
+      // antes do middleware decidir. router.push() não servia em Safari antigo.
+      window.location.assign("/tablet");
+    } catch (e) {
+      const mensagem = e instanceof Error ? e.message : "Erro inesperado ao entrar.";
+      setErro(mensagem);
+      guardarErroLogin(mensagem);
     } finally {
       setCarregando(false);
     }
