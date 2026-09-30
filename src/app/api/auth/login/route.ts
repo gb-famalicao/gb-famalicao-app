@@ -14,22 +14,45 @@ export type LoginErro = "credenciais" | "nao_confirmado" | "perfil" | "generico"
  * com Set-Cookie do servidor, seguido de navegação dura no cliente, é o caminho
  * mais compatível. Também evita o corte de 7 dias que o ITP do Safari aplica a
  * cookies escritos via document.cookie.
+ *
+ * Aceita dois formatos, de propósito:
+ *  - application/json            → responde JSON (caminho normal, com JavaScript)
+ *  - application/x-www-form-...  → responde com redirect (submissão nativa do
+ *                                  <form>, funciona mesmo se o JS do cliente
+ *                                  morrer — que é o que acontece no iPad)
  */
 export async function POST(request: NextRequest) {
-  let body: { email?: unknown; password?: unknown; perfilEsperado?: unknown };
+  const ehFormulario = !(request.headers.get("content-type") ?? "").includes("application/json");
+
+  let email = "";
+  let password = "";
+  let perfilEsperado: PerfilUsuario | null = null;
+  let destino = "/perfil";
 
   try {
-    body = await request.json();
+    if (ehFormulario) {
+      const form = await request.formData();
+      email = String(form.get("email") ?? "");
+      password = String(form.get("senha") ?? "");
+      perfilEsperado = (form.get("perfilEsperado") as PerfilUsuario | null) || null;
+      destino = caminhoSeguro(form.get("destino"));
+    } else {
+      const body = await request.json();
+      email = typeof body.email === "string" ? body.email : "";
+      password = typeof body.password === "string" ? body.password : "";
+      perfilEsperado =
+        typeof body.perfilEsperado === "string" ? (body.perfilEsperado as PerfilUsuario) : null;
+      destino = caminhoSeguro(body.destino);
+    }
   } catch {
-    return erro("generico");
+    return responder(request, ehFormulario, perfilEsperado, "generico");
   }
 
-  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-  const password = typeof body.password === "string" ? body.password : "";
-  const perfilEsperado =
-    typeof body.perfilEsperado === "string" ? (body.perfilEsperado as PerfilUsuario) : null;
+  email = email.trim().toLowerCase();
 
-  if (!email || !password) return erro("credenciais");
+  if (!email || !password) {
+    return responder(request, ehFormulario, perfilEsperado, "credenciais");
+  }
 
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -53,8 +76,10 @@ export async function POST(request: NextRequest) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error || !data.user) {
-    if (error?.message.includes("Email not confirmed")) return erro("nao_confirmado");
-    return erro("credenciais");
+    const tipo: LoginErro = error?.message.includes("Email not confirmed")
+      ? "nao_confirmado"
+      : "credenciais";
+    return responder(request, ehFormulario, perfilEsperado, tipo);
   }
 
   // Verificação de perfil server-side (ex.: só a conta do tablet entra em /tablet)
@@ -67,13 +92,36 @@ export async function POST(request: NextRequest) {
 
     if (profile?.perfil !== perfilEsperado) {
       await supabase.auth.signOut();
-      return erro("perfil");
+      return responder(request, ehFormulario, perfilEsperado, "perfil");
     }
+  }
+
+  if (ehFormulario) {
+    // 303 força o browser a seguir com GET — sem isto reenviava o POST
+    return NextResponse.redirect(new URL(destino, request.url), 303);
   }
 
   return NextResponse.json({ ok: true });
 }
 
-function erro(tipoErro: LoginErro) {
-  return NextResponse.json({ ok: false, tipoErro }, { status: 200 });
+/** Evita open redirect: só caminhos relativos deste site. */
+function caminhoSeguro(valor: unknown): string {
+  return typeof valor === "string" && valor.startsWith("/") && !valor.startsWith("//")
+    ? valor
+    : "/perfil";
+}
+
+function responder(
+  request: NextRequest,
+  ehFormulario: boolean,
+  perfilEsperado: PerfilUsuario | null,
+  tipoErro: LoginErro
+) {
+  if (!ehFormulario) {
+    return NextResponse.json({ ok: false, tipoErro }, { status: 200 });
+  }
+
+  const url = new URL(perfilEsperado === "tablet" ? "/tablet/login" : "/login", request.url);
+  url.searchParams.set("erro", tipoErro);
+  return NextResponse.redirect(url, 303);
 }
