@@ -5,6 +5,10 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { senhaValida, REGRA_SENHA_TEXTO } from "@/lib/senha";
 import { randomUUID } from "crypto";
 import { revalidatePath } from "next/cache";
+import {
+  calcularPlano, gravarPlanoAluno, rotulosModalidades, validarPlano,
+  type DescontoPlano, type LinhaPlano,
+} from "@/lib/modalidades";
 
 export interface CriarAlunoResult {
   ok: boolean;
@@ -29,12 +33,33 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
   const categoria           = (formData.get("categoria") as string) || "adulto";
   const iban                = (formData.get("iban") as string | null)?.trim() || null;
   const nif                 = (formData.get("nif") as string | null)?.trim() || null;
-  const valorMensalidade    = isResponsavel ? null : ((formData.get("valor_mensalidade") as string | null)?.trim() || null);
   const primeiroVencimento  = isResponsavel ? null : ((formData.get("primeiro_vencimento") as string | null)?.trim() || null);
 
+  let linhas: LinhaPlano[] = [];
+  let descontos: DescontoPlano[] = [];
+  try {
+    linhas = isResponsavel ? [] : JSON.parse((formData.get("modalidades") as string | null) || "[]");
+    descontos = isResponsavel ? [] : JSON.parse((formData.get("descontos") as string | null) || "[]");
+  } catch {
+    return { ok: false, erro: "Modalidades inválidas." };
+  }
+
   if (!nomeCompleto) return { ok: false, erro: "Nome é obrigatório." };
+  const planoInvalido = validarPlano(linhas, descontos);
+  if (planoInvalido) return { ok: false, erro: planoInvalido };
 
   const admin = createAdminClient();
+
+  // Composição da primeira mensalidade (o local de cada modalidade define onde o aluno treina)
+  const rotulos = await rotulosModalidades(admin);
+  if (linhas.some((l) => !rotulos.has(l.modalidade_id))) return { ok: false, erro: "Modalidade inválida." };
+  const { itens, total: valorMensalidade } = calcularPlano(linhas, descontos, rotulos);
+
+  async function gravarPlano(alunoId: string) {
+    if (linhas.length === 0 && descontos.length === 0) return null;
+    const erro = await gravarPlanoAluno(admin, alunoId, linhas, descontos);
+    return erro ? { message: erro } : null;
+  }
 
   try {
     if (semLogin) {
@@ -58,6 +83,9 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
 
       if (insertErr) return { ok: false, erro: insertErr.message };
 
+      const planoErr = await gravarPlano(uuid);
+      if (planoErr) return { ok: false, erro: `Aluno criado, mas erro nas modalidades: ${planoErr.message}` };
+
       if (responsavelId) {
         await admin.from("dependentes").insert({
           dependente_id:  uuid,
@@ -65,14 +93,15 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
         });
       }
 
-      if (valorMensalidade && primeiroVencimento && Number(valorMensalidade) > 0) {
+      if (valorMensalidade > 0 && primeiroVencimento) {
         const [ano, mes] = primeiroVencimento.split("-");
         const mesRef = `${ano}-${mes}-01`;
         await admin.from("mensalidades").insert({
           aluno_id:        uuid,
           mes_referencia:  mesRef,
           data_vencimento: primeiroVencimento,
-          valor:           Number(valorMensalidade),
+          valor:           valorMensalidade,
+          itens,
           status:          "pendente",
         });
       }
@@ -118,14 +147,18 @@ export async function criarAluno(formData: FormData): Promise<CriarAlunoResult> 
 
     if (profileErr) return { ok: false, erro: `Usuário criado, mas erro no perfil: ${profileErr.message}` };
 
-    if (valorMensalidade && primeiroVencimento && Number(valorMensalidade) > 0) {
+    const planoErr = await gravarPlano(userId);
+    if (planoErr) return { ok: false, erro: `Usuário criado, mas erro nas modalidades: ${planoErr.message}` };
+
+    if (valorMensalidade > 0 && primeiroVencimento) {
       const [ano, mes] = primeiroVencimento.split("-");
       const mesRef = `${ano}-${mes}-01`;
       await admin.from("mensalidades").insert({
         aluno_id:        userId,
         mes_referencia:  mesRef,
         data_vencimento: primeiroVencimento,
-        valor:           Number(valorMensalidade),
+        valor:           valorMensalidade,
+        itens,
         status:          "pendente",
       });
     }
