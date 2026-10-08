@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Profile, Mensalidade, HistoricoGraduacao } from "@/lib/types";
+import { listarGrupos } from "@/lib/grupos";
+import { listarModalidades } from "@/lib/modalidades";
+import type { Profile, Mensalidade, HistoricoGraduacao, AlunoModalidade } from "@/lib/types";
 import type { PresencaItem } from "@/components/PresencasCalendario";
 import { calcularElegibilidade, type ElegibilidadeResult } from "@/lib/graduacao-rules";
 import { AlunoEditView } from "./AlunoEditView";
@@ -22,6 +24,9 @@ export default async function AlunoDetailPage({ params }: Props) {
     { data: dependentesRows },
     { data: alunosComLoginRows },
     authUserResult,
+    grupos,
+    modalidades,
+    { data: planoRows },
   ] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", id).single(),
     supabase
@@ -55,6 +60,9 @@ export default async function AlunoDetailPage({ params }: Props) {
       .or("sem_login.is.null,sem_login.eq.false")
       .order("nome_completo"),
     supabase.auth.admin.getUserById(id),
+    listarGrupos(supabase),
+    listarModalidades(supabase),
+    supabase.from("aluno_modalidades").select("aluno_id, modalidade_id, valor").eq("aluno_id", id),
   ]);
 
   if (!aluno) notFound();
@@ -92,6 +100,14 @@ export default async function AlunoDetailPage({ params }: Props) {
       responsavel={responsavelProfile}
       dependentesDoAluno={dependentesProfiles}
       alunosComLogin={todosProfiles}
+      grupos={grupos}
+      modalidades={modalidades}
+      planoInicial={((planoRows ?? []) as AlunoModalidade[])
+        .map((r) => ({ ...r, valor: Number(r.valor) }))
+        // mesma ordem da lista de modalidades (padrão primeiro)
+        .sort((a, b) =>
+          modalidades.findIndex((m) => m.id === a.modalidade_id) -
+          modalidades.findIndex((m) => m.id === b.modalidade_id))}
     />
   );
 }

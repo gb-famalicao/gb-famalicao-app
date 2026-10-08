@@ -6,7 +6,7 @@ import { Search, UserPlus, ChevronRight, User, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { labelCorFaixa } from "@/lib/utils";
-import type { Profile, CorFaixa, StatusAluno, CategoriaFaixa } from "@/lib/types";
+import type { Profile, CorFaixa, StatusAluno, CategoriaFaixa, GrupoAluno, Modalidade } from "@/lib/types";
 
 const FAIXA_BG: Record<CorFaixa, string> = {
   branca:         "bg-white border border-gray-300",
@@ -44,18 +44,31 @@ const PERFIL_LABEL: Record<string, string> = {
 
 const PAGE_SIZE = 20;
 
+/** Valor do filtro para alunos sem grupo atribuído */
+const SEM_GRUPO = "__sem_grupo__";
+
 interface Props {
   alunos: Profile[];
   responsaveisMap: Record<string, string>;
+  grupos: GrupoAluno[];
+  grupoInicial: string;
+  modalidades: Modalidade[];
+  /** aluno_id → ids das modalidades em que está inscrito */
+  modalidadesPorAluno: Record<string, string[]>;
+  modalidadeInicial: string;
 }
 
-export function AlunosView({ alunos, responsaveisMap }: Props) {
+export function AlunosView({
+  alunos, responsaveisMap, grupos, grupoInicial, modalidades, modalidadesPorAluno, modalidadeInicial,
+}: Props) {
   const [lista, setLista] = useState<Profile[]>(alunos);
   const [busca, setBusca] = useState("");
   const [tabAtiva, setTabAtiva] = useState<"ativos" | "inativos">("ativos");
   const [filtroFaixa, setFiltroFaixa] = useState<CorFaixa | "">("");
   const [filtroCategoria, setFiltroCategoria] = useState<CategoriaFaixa | "">("");
   const [filtroPerfil, setFiltroPerfil] = useState<string>("");
+  const [filtroGrupo, setFiltroGrupo] = useState<string>(grupoInicial);
+  const [filtroModalidade, setFiltroModalidade] = useState<string>(modalidadeInicial);
   const [pagina, setPagina] = useState(1);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
@@ -93,11 +106,15 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
         if (a.status !== "inativo" && a.status !== "trancado") return false;
       }
       if (filtroPerfil && a.perfil !== filtroPerfil) return false;
+      if (filtroGrupo === SEM_GRUPO) {
+        if (a.perfil === "responsavel" || a.grupo_id) return false;
+      } else if (filtroGrupo && a.grupo_id !== filtroGrupo) return false;
+      if (filtroModalidade && !(modalidadesPorAluno[a.id] ?? []).includes(filtroModalidade)) return false;
       if (filtroFaixa && a.faixa !== filtroFaixa) return false;
       if (filtroCategoria && a.categoria !== filtroCategoria) return false;
       return true;
     });
-  }, [lista, busca, tabAtiva, filtroPerfil, filtroFaixa, filtroCategoria]);
+  }, [lista, busca, tabAtiva, filtroPerfil, filtroGrupo, filtroModalidade, modalidadesPorAluno, filtroFaixa, filtroCategoria]);
 
   const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -106,6 +123,17 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
   function resetPagina() { setPagina(1); }
 
   const selectClass = "h-9 rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gb-blue/30 focus:border-gb-blue";
+
+  // Chip só para modalidades que não são a padrão (ex.: "Capoeira") — evita "Jiu-Jitsu" em todas as linhas
+  const modalidadesExtra = useMemo(
+    () => new Map(modalidades.filter((m) => !m.padrao).map((m) => [m.id, m.nome])),
+    [modalidades],
+  );
+  const nomeGrupo = useMemo(() => new Map(grupos.map((g) => [g.id, g.nome])), [grupos]);
+  const haAlunosSemGrupo = useMemo(
+    () => lista.some((a) => a.perfil !== "responsavel" && !a.grupo_id),
+    [lista],
+  );
 
   // Collect unique belts present in the list for the filter dropdown
   const faixasPresentes = useMemo(() => {
@@ -160,6 +188,37 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
             className="pl-9 h-9 rounded-xl border-gray-200"
           />
         </div>
+
+        {modalidades.length > 1 && (
+          <select
+            title="Filtrar por modalidade"
+            aria-label="Filtrar por modalidade"
+            value={filtroModalidade}
+            onChange={(e) => { setFiltroModalidade(e.target.value); resetPagina(); }}
+            className={selectClass}
+          >
+            <option value="">Todas as modalidades</option>
+            {modalidades.map((m) => (
+              <option key={m.id} value={m.id}>{m.nome}{m.ativo ? "" : " (inativa)"}</option>
+            ))}
+          </select>
+        )}
+
+        {grupos.length > 0 && (
+          <select
+            title="Filtrar por grupo"
+            aria-label="Filtrar por grupo"
+            value={filtroGrupo}
+            onChange={(e) => { setFiltroGrupo(e.target.value); resetPagina(); }}
+            className={selectClass}
+          >
+            <option value="">Todos os grupos</option>
+            {grupos.map((g) => (
+              <option key={g.id} value={g.id}>{g.nome}{g.ativo ? "" : " (inativo)"}</option>
+            ))}
+            {haAlunosSemGrupo && <option value={SEM_GRUPO}>Sem grupo</option>}
+          </select>
+        )}
 
         <select
           title="Filtrar por perfil"
@@ -249,6 +308,16 @@ export function AlunosView({ alunos, responsaveisMap }: Props) {
                       </span>
                     )}
                     <span className="text-xs text-gray-400 capitalize">{a.categoria}</span>
+                    {(modalidadesPorAluno[a.id] ?? []).filter((id) => modalidadesExtra.has(id)).map((id) => (
+                      <span key={id} className="rounded-full bg-gb-blue/10 px-2 py-px text-xs font-medium text-gb-blue">
+                        {modalidadesExtra.get(id)}
+                      </span>
+                    ))}
+                    {a.grupo_id && nomeGrupo.has(a.grupo_id) && (
+                      <span className="rounded-full bg-gray-100 px-2 py-px text-xs text-gray-600">
+                        {nomeGrupo.get(a.grupo_id)}
+                      </span>
+                    )}
                   </div>
                 </Link>
 
